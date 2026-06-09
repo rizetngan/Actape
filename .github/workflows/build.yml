@@ -1,0 +1,103 @@
+name: Build Macrobot
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: macos-26
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.4.app/Contents/Developer
+
+      # Build unsigned: CI has no Apple Developer credentials, and the project
+      # uses automatic signing with a development team. Disabling signing here
+      # lets the archive succeed on the runner; we ad-hoc sign below so the app
+      # launches on Apple Silicon.
+      - name: Archive (unsigned)
+        run: |
+          xcodebuild archive \
+            -project Macrobot.xcodeproj \
+            -scheme Macrobot \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "$RUNNER_TEMP/Macrobot.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM=""
+
+      # An unsigned binary won't launch on Apple Silicon, so ad-hoc sign it with
+      # the hardened runtime + the project's entitlements (sandbox off — required
+      # for the event tap). The result is not notarized; see the release notes
+      # for how users get past Gatekeeper.
+      - name: Ad-hoc sign and package
+        id: package
+        run: |
+          APP="$RUNNER_TEMP/Macrobot.xcarchive/Products/Applications/Macrobot.app"
+          codesign --force --deep --options runtime \
+            --entitlements Macrobot.entitlements --sign - "$APP"
+          codesign --verify --verbose=2 "$APP"
+
+          VERSION="0.1.0-${GITHUB_SHA::8}"
+          ZIP="Macrobot-${VERSION}.zip"
+          # ditto preserves the bundle structure and extended attributes.
+          ditto -c -k --keepParent "$APP" "$ZIP"
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Macrobot-app
+          path: ${{ steps.package.outputs.zip }}
+          if-no-files-found: error
+
+      - name: Create / update GitHub Release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.package.outputs.version }}"
+          ZIP="${{ steps.package.outputs.zip }}"
+
+          cat > "$RUNNER_TEMP/notes.md" <<'NOTES'
+          Automated build from `__VERSION__`.
+
+          **Download:** `Macrobot-__VERSION__.zip` — a universal (Apple Silicon + Intel) macOS app.
+
+          ### Opening the app
+          The build is **ad-hoc signed and not notarized**, so macOS Gatekeeper will
+          warn on first launch. To open it:
+
+          1. Unzip and move `Macrobot.app` to `/Applications`.
+          2. Right-click the app → **Open** → **Open** (only needed once), or run:
+             `xattr -dr com.apple.quarantine /Applications/Macrobot.app`
+
+          ### First-run permissions
+          Macrobot needs **Accessibility** access to record and replay events. On first
+          launch it shows a banner — click it to open
+          **System Settings → Privacy & Security → Accessibility** and enable Macrobot.
+          NOTES
+          sed -i '' "s/__VERSION__/$VERSION/g" "$RUNNER_TEMP/notes.md"
+
+          # Re-runnable: create the release, or just (re)upload the asset if the
+          # tag already exists.
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release upload "$VERSION" "$ZIP" --clobber
+          else
+            gh release create "$VERSION" "$ZIP" \
+              --title "$VERSION" \
+              --notes-file "$RUNNER_TEMP/notes.md"
+          fi
