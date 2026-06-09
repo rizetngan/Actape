@@ -4,7 +4,7 @@ A lightweight macOS app for recording and replaying mouse + keyboard macros. It
 captures global input via a `CGEventTap` and plays it back with `CGEvent.post`,
 so it can drive any app — not just itself.
 
-![Macrobot main window](docs/screenshot.jpeg)
+![Macrobot main window](docs/screenshot.png)
 
 ## Features
 
