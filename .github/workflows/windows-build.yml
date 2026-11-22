@@ -1,0 +1,43 @@
+name: Build Windows Macrobot
+
+on:
+  push:
+    branches: [main, feature/windows-native]
+    paths:
+      - 'Windows/**'
+      - '.github/workflows/windows-build.yml'
+  pull_request:
+    paths:
+      - 'Windows/**'
+      - '.github/workflows/windows-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish single-file Windows app
+        shell: pwsh
+        run: |
+          dotnet publish Windows/Macrobot.Windows/Macrobot.Windows.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o ./out/windows
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force ./out/package | Out-Null
+          Copy-Item ./out/windows/Macrobot.exe ./out/package/Macrobot.exe
+          Copy-Item Windows/README.md ./out/package/使用说明.md
+          Compress-Archive -Path ./out/package/* -DestinationPath ./out/Macrobot-Windows-preview-win-x64.zip -Force
+      - name: Upload preview artifact (no automatic public release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Macrobot-Windows-win-x64
+          path: ./out/Macrobot-Windows-preview-win-x64.zip
+          if-no-files-found: error

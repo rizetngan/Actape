@@ -40,3 +40,7 @@ build/
 # Local SDKs and temporary files
 .tools/
 .tmp/
+
+# Windows local QA artifacts
+/Windows/*.log
+/Windows/*.png
