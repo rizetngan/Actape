@@ -1,6 +1,6 @@
 # macOS 鼠标侧键直接绑定 · 首版开发说明
 
-项目：基于 [illixion/Macrobot](https://github.com/illixion/MacroBot)（MIT 许可）二次开发。
+项目：Actape 的 macOS 鼠标侧键实现说明。macOS 原始代码基于 [illixion/MacroBot](https://github.com/illixion/MacroBot)（MIT 许可）二次开发。
 Windows 工作目录：`F:\mac鼠标宏录制`。目标平台是 macOS，不是 Windows。
 
 ## 已接入
@@ -22,12 +22,12 @@ Windows 工作目录：`F:\mac鼠标宏录制`。目标平台是 macOS，不是 
 在终端进入项目目录后执行：
 
 ```bash
-xcodebuild -project Macrobot.xcodeproj -scheme Macrobot \
+xcodebuild -project Actape.xcodeproj -scheme Actape \
   -configuration Debug -destination 'platform=macOS' \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-也可以用 Xcode 打开 `Macrobot.xcodeproj`，选择本机 Mac 运行。
+也可以用 Xcode 打开 `Actape.xcodeproj`，选择本机 Mac 运行。
 若需要稳定安装包，须进一步配置自己团队的签名/公证，不应沿用上游开发者签名身份。
 
 初次运行后，在「系统设置 → 隐私与安全性 → 辅助功能」授权。

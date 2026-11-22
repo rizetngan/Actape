@@ -1,4 +1,4 @@
-name: Build Macrobot
+name: Build Actape for macOS
 
 on:
   push:
@@ -26,11 +26,11 @@ jobs:
       - name: Archive (unsigned)
         run: |
           xcodebuild archive \
-            -project Macrobot.xcodeproj \
-            -scheme Macrobot \
+            -project Actape.xcodeproj \
+            -scheme Actape \
             -configuration Release \
             -destination 'generic/platform=macOS' \
-            -archivePath "$RUNNER_TEMP/Macrobot.xcarchive" \
+            -archivePath "$RUNNER_TEMP/Actape.xcarchive" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -44,13 +44,13 @@ jobs:
       - name: Ad-hoc sign and package
         id: package
         run: |
-          APP="$RUNNER_TEMP/Macrobot.xcarchive/Products/Applications/Macrobot.app"
+          APP="$RUNNER_TEMP/Actape.xcarchive/Products/Applications/Actape.app"
           codesign --force --deep --options runtime \
-            --entitlements Macrobot.entitlements --sign - "$APP"
+            --entitlements Actape.entitlements --sign - "$APP"
           codesign --verify --verbose=2 "$APP"
 
           VERSION="0.1.0-${GITHUB_SHA::8}"
-          ZIP="Macrobot-${VERSION}.zip"
+          ZIP="Actape-${VERSION}.zip"
           # ditto preserves the bundle structure and extended attributes.
           ditto -c -k --keepParent "$APP" "$ZIP"
 
@@ -60,7 +60,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Macrobot-app
+          name: Actape-app
           path: ${{ steps.package.outputs.zip }}
           if-no-files-found: error
 
@@ -76,20 +76,20 @@ jobs:
           cat > "$RUNNER_TEMP/notes.md" <<'NOTES'
           Automated build from `__VERSION__`.
 
-          **Download:** `Macrobot-__VERSION__.zip` — a universal (Apple Silicon + Intel) macOS app.
+          **Download:** `Actape-__VERSION__.zip` — a universal (Apple Silicon + Intel) macOS app.
 
           ### Opening the app
           The build is **ad-hoc signed and not notarized**, so macOS Gatekeeper will
           warn on first launch. To open it:
 
-          1. Unzip and move `Macrobot.app` to `/Applications`.
+          1. Unzip and move `Actape.app` to `/Applications`.
           2. Right-click the app → **Open** → **Open** (only needed once), or run:
-             `xattr -dr com.apple.quarantine /Applications/Macrobot.app`
+             `xattr -dr com.apple.quarantine /Applications/Actape.app`
 
           ### First-run permissions
-          Macrobot needs **Accessibility** access to record and replay events. On first
+          Actape needs **Accessibility** access to record and replay events. On first
           launch it shows a banner — click it to open
-          **System Settings → Privacy & Security → Accessibility** and enable Macrobot.
+          **System Settings → Privacy & Security → Device Control and Data Access** (macOS 27) or **Accessibility** on older macOS versions, then enable Actape.
           NOTES
           sed -i '' "s/__VERSION__/$VERSION/g" "$RUNNER_TEMP/notes.md"
 

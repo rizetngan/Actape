@@ -1,52 +1,64 @@
-# Macrobot for Windows（开发版）
+# Actape for Windows（开发预览版）
 
-基于 Macrobot 的产品体验，独立实现原生 Windows 版。**一个 App** 即可录制操作、编辑、绑定鼠标侧键并执行，不依赖额外鼠标映射工具。
+Actape 的原生 Windows 实现。使用一个 App 完成鼠标与键盘操作录制、步骤编辑、侧键绑定和宏回放。
 
-Windows 源码：`Windows/Macrobot.Windows/`。使用 WPF、Win32 `WH_MOUSE_LL`、`WH_KEYBOARD_LL` 和 `SendInput`，不复用 macOS 特有的 AppKit/CoreGraphics 代码。
+## 功能
 
-## 当前支持
+- 简体中文双栏界面：宏列表、步骤编辑、复制、删除、JSON 导入导出
+- 系统级鼠标点击、拖动、滚动录制；可选键盘录制
+- 步骤编辑：坐标、延迟、点击次数、按键、文字输入与滚动
+- 直接绑定标准鼠标侧键 XBUTTON1 / XBUTTON2
+- 每个宏独立配置单击触发或按住循环、松开停止
+- F6 录制/结束，F7 测试执行
+- 系统托盘常驻、自动保存、停止时释放模拟按键
 
-- 简体中文双栏编辑器，宏列表、复制、删除、导入导出 JSON
-- 系统级鼠标点击、拖动、滚动录制；可开启键盘录制
-- 步骤坐标、延迟、点击次数、按键与文字输入的编辑和回放
-- 点击「绑定侧键」，直接按鼠标 XBUTTON1 / XBUTTON2 完成绑定
-- 每个宏独立配置触发方式：单击触发，或按住反复执行、松开停止
-- 正在执行时再次按绑定侧键停止；全局暂停后恢复侧键原本用途
-- 托盘常驻、F6 录制／结束、F7 测试执行、自动保存到用户目录
-- 宏执行取消时主动释放已模拟按下的键盘/鼠标按钮
+## 技术实现
 
-## 建置与兼容
+- WPF / C# / .NET 10
+- Win32 `WH_MOUSE_LL`、`WH_KEYBOARD_LL` 低级输入钩子
+- `SendInput` 执行鼠标与键盘输入
+- 使用标准 XBUTTON1 / XBUTTON2 事件识别鼠标侧键
 
-默认目标框架：`.NET 10 / Windows 10/11`，官方 .NET 10 SDK：
+Windows 版本独立实现，不复用 macOS 的 AppKit / CoreGraphics 代码。
+
+## 下载与状态
+
+当前为开发预览版。本机已通过 Windows 兼容环境编译、独立 EXE 启动和基础界面流程检查。真实鼠标侧键长按循环、松开停止仍待实体设备验收，不作为稳定版发布。
+
+构建产物将在 GitHub Actions 的 [Windows workflow](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml) 中提供。正式版发布后会在 [Releases](https://github.com/rizetngan/Actape/releases) 提供下载。
+
+## 构建
+
+要求 Windows 10/11 与 .NET 10 SDK：
 
 ```powershell
-dotnet build Windows/Macrobot.Windows/Macrobot.Windows.csproj -c Release
-dotnet publish Windows/Macrobot.Windows/Macrobot.Windows.csproj -c Release -r win-x64 `
+dotnet restore Windows/Actape.Windows/Actape.Windows.csproj
+dotnet build Windows/Actape.Windows/Actape.Windows.csproj -c Release
+dotnet publish Windows/Actape.Windows/Actape.Windows.csproj -c Release -r win-x64 `
   --self-contained true -p:PublishSingleFile=true
 ```
 
-开发电脑为 Windows 10 22H2（19045.2006），缺少 .NET 10 所需的完整 CET 更新，SDK 的编译器会在此旧系统上直接退出。
-**不通过关闭 CET 等系统安全防护来解决。**
-本地开发态验证可通过独立的 .NET 8 SDK 构建临时兼容版本：
+默认输出为 `Windows/Actape.Windows/bin/Release/net10.0-windows/`。
 
-```powershell
-& "$env:LOCALAPPDATA\MacrobotSdk\dotnet8\dotnet.exe" msbuild Windows\Macrobot.Windows\Macrobot.Windows.csproj -restore -t:Build -p:TargetFramework=net8.0-windows -p:Configuration=Debug
-```
-
-注意：.NET 8 的官方安全支持已经结束，兼容构建仅用于该旧电脑上的开发/验收，不作为面向公众的长期发行版本。正式交付应使用已更新的 Windows 及受支持的 .NET 10。
-
-普通权限的 Windows 应用不能向管理员权限的窗口可靠注入输入（UIPI 机制），而某些鼠标厂家驱动并不向系统发送标准 XBUTTON 事件。这两类限制需要实机单独验证，不能仅凭编译通过宣称完全兼容。
+开发电脑使用 Windows 10 22H2，缺少当前 .NET 10 编译器所需的系统 CET 更新，因此本机预览验证使用独立 .NET 8 SDK 兼容构建；CI 与正式发布仍以受支持的 .NET 10 / Windows 组合为准。不会通过关闭系统安全防护来规避该环境问题。
 
 ## 录制与绑定
 
-1. 新建宏，点击「开始录制」，有 2 秒准备时间。
-2. 切换到目标窗口操作，按 F6 结束录制；编辑步骤后可先点击「测试执行」。
-3. 点击「绑定侧键…」，直接按一次实体侧键；支持标准的侧键 4 / 5。
-4. 选择单击或按住模式。单击：按一次启动，再按一次停止；按住：按住循环，松开停止。
-5. 关闭主窗口后应用留在托盘；托盘菜单可暂停全部宏、停止执行和真正退出。
+1. 新建宏，点击「开始录制」，等待 2 秒倒计时。
+2. 切换到目标窗口执行操作，按 F6 或点击「完成录制」。
+3. 选择步骤可编辑参数、调整顺序；点击「测试执行」进行一次回放。
+4. 点击「绑定侧键…」，直接按一次实体鼠标侧键。
+5. 单击模式：按下启动，再次按下停止。按住模式：按住循环执行，松开立即停止。
+6. 关闭主窗口后 Actape 留在系统托盘；托盘菜单可暂停、停止或退出。
 
-保存目录：`%APPDATA%\Macrobot\Windows\macros.json`。Windows 版采用自己的 JSON 数据结构，暂不直接载入 macOS 的 Swift `macros.json`；后续统一跨平台兼容格式。
+## 数据与兼容
 
-## 项目来源和许可
+- 宏数据保存在 `%APPDATA%\Actape\Windows\macros.json`。
+- 从旧版 Macrobot 升级时，如果新目录尚无数据，会自动复制 `%APPDATA%\Macrobot\Windows\macros.json`；旧文件保留。
+- Windows 与 macOS 当前使用独立数据模型，支持 JSON 导入导出。
+- 普通权限的应用无法可靠向管理员权限窗口注入输入（Windows UIPI 限制）。
+- 部分鼠标驱动不发送标准 XBUTTON 事件，需按实际设备验证。
 
-macOS 原始代码基于 [illixion/MacroBot](https://github.com/illixion/MacroBot)（MIT），原版权及 [LICENSE](../LICENSE) 保留。
+## 项目来源与许可
+
+macOS 原始实现基于 [illixion/MacroBot](https://github.com/illixion/MacroBot)（MIT）；Windows 版本为独立实现。上游版权及 [MIT License](../LICENSE) 保留。

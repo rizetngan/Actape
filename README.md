@@ -1,95 +1,130 @@
-# Macrobot
+<div align="center">
 
-[简体中文说明 / 简体中文 README](README.zh-CN.md)
+<img src="docs/actape-icon.png" width="112" alt="Actape 图标">
 
-> The macOS direct side-button build was tested with a physical mouse. Windows support is under development. Hold-to-repeat mode is **not** yet implemented in the macOS build.
+# Actape
 
+**随录随用的轻量化鼠标与键盘宏工具**
 
-A lightweight macOS app for recording and replaying mouse + keyboard macros. It
-captures global input via a `CGEventTap` and plays it back with `CGEvent.post`,
-so it can drive any app — not just itself.
+[![macOS CI](https://github.com/rizetngan/Actape/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/rizetngan/Actape/actions/workflows/build.yml) [![Windows CI](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml/badge.svg?branch=main)](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/status-preview-orange)
 
-![Macrobot main window](docs/screenshot.png)
+简体中文 · [English](README.en.md)
 
-## Features
+[功能](#功能) · [macOS](#macos) · [Windows](#windows) · [下载安装](#下载安装) · [开发](#开发)
 
-- **Record clicks, drags, scrolls, and keystrokes** system-wide with one hotkey.
-- **Clean, editable steps.** Recordings collapse into readable steps you can edit
-  inline — adjust coordinates, buttons, click counts, delays, or reorder by drag.
-- **Smart click capture.** A quick press becomes a single *Click* step (which
-  always releases promptly, even when slowed down); a long press stays a real
-  press-and-hold; movement is recorded as a drag.
-- **Adjustable playback.** Set a repeat count or loop forever, and scale the whole
-  macro's speed from 0.1× to 10×.
-- **Programmable "Type Text" steps** with an auto-incrementing counter — numbers or
-  24-hour timestamps (e.g. type `0000`, `0015`, `0030`… once per loop), with an
-  optional stop time that halts the run.
-- **Configurable global shortcuts** for record and play (default **F6** / **F7**).
-- **Import / export** macros as JSON, and automatic persistence between launches.
+</div>
 
-## Direct mouse side-button macro trigger (custom fork)
+<p align="center">
+<img src="docs/windows-preview.png" width="94%" alt="Actape Windows 原生界面">
+<br><sub>Windows 原生界面 · 开发预览版</sub>
+</p>
 
-This branch adds a built-in mouse side-button listener; no separate mouse remapping app is required. Open a macro, click **Bind button…**, then press the physical mouse side button you want to use. The assignment is saved with the macro and can be cleared or reassigned. During normal use, pressing the bound side button runs the recorded macro directly (press again to stop playback). The original Back/Forward action of the mapped side button is suppressed.
+Actape 是一款面向 macOS 与 Windows 的原生宏工具。把重复的鼠标和键盘操作录下来，整理成可编辑步骤，再绑定到鼠标侧键随时执行。**一个轻量 App 完成录制、编辑、触发和回放，不需要额外安装鼠标映射软件。**
 
-The implementation listens for macOS CoreGraphics extra mouse button events, so buttons transformed into keyboard shortcuts by vendor firmware/software may need a separate compatibility path.
+## 功能
 
-For architecture, build and manual acceptance checks, see [docs/MOUSE_BUTTON_TRIGGER.md](docs/MOUSE_BUTTON_TRIGGER.md). The original MIT license is retained.
+- **随手录制**：系统级捕获鼠标点击、拖动、滚动和键盘操作。
+- **步骤编辑**：调整坐标、按键、点击次数、延迟与执行顺序。
+- **侧键触发**：直接按下实体鼠标侧键绑定宏，不必手动填写按键编号。
+- **快速回放**：配置执行次数与速度；Windows 版支持按住循环、松开停止。
+- **宏管理**：新建、复制、删除、自动保存，支持 JSON 导入与导出。
+- **全局快捷键**：通过 F6 / F7 快速开始录制与测试执行。
 
-## Download
+## macOS
 
-**Custom fork:** build this modified source with Xcode as documented below; the upstream Releases do **not** contain the direct side-button feature.
+**状态：** macOS 实体鼠标侧键测试通过
 
-The upstream project publishes a universal (Apple Silicon + Intel) `Macrobot-*.zip`, but that binary is not this modified version.
+原生 SwiftUI 实现，使用 CoreGraphics 监听和回放系统级输入事件。
 
-The **upstream** release is ad-hoc signed but **not notarized**, so Gatekeeper may warn on first launch. Custom builds must be signed appropriately before distribution. To open an app you trust:
+- 录制鼠标点击、拖动、滚动及键盘输入。
+- 编辑步骤、设置循环次数与回放速度。
+- 直接绑定实体鼠标侧键；按下触发，再次按下停止。
+- 全局 F6 / F7 快捷键，可在设置中调整。
+- JSON 导入导出与自动保存。
 
-1. Unzip and move `Macrobot.app` to `/Applications`.
-2. Right-click the app → **Open** → **Open** (once), or run
-   `xattr -dr com.apple.quarantine /Applications/Macrobot.app`.
+当前 macOS 版本支持侧键单击触发；**按住循环、松开立即停止尚未实现**。
 
-## Permissions
+## Windows
 
-Macrobot needs **Accessibility** access to observe and post events — a sandboxed
-app can't create a session-level event tap. On first launch it shows a banner;
-click it to open **System Settings / Privacy & Security / Device Control and Data Access**
-(macOS 27) or **Accessibility** on older macOS versions, then enable Macrobot. The app re-checks every couple of seconds, so the banner clears
-as soon as you grant access.
+**状态：** Windows 开发预览版
 
-## Default shortcuts
+原生 WPF 实现，使用 Win32 低级鼠标/键盘钩子与 `SendInput`，与 macOS 版本独立实现，不依赖额外驱动映射程序。
 
-| Action            | Shortcut | Menu             |
-| ----------------- | -------- | ---------------- |
-| Toggle recording  | **F6**   | ⌘⇧R              |
-| Toggle playback   | **F7**   | ⌘⇧P              |
-| New macro         | —        | ⌘N               |
-| Import macros     | —        | ⌘O               |
-| Export selected   | —        | ⌘⇧E              |
+- 鼠标点击、拖动、滚动录制；可选录制键盘操作。
+- 编辑坐标、延迟、点击次数、按键和文字输入步骤。
+- 直接绑定标准鼠标侧键 XBUTTON1 / XBUTTON2。
+- 每个宏独立选择单击触发，或按住循环、松开停止。
+- 系统托盘常驻、自动保存、JSON 导入导出。
 
-The two global shortcuts are configurable in **Settings (⌘,)**. Function keys are
-recommended — a shortcut's key can't be captured while you're recording.
+Windows 版已完成本机编译、独立 EXE 启动和界面/基础流程检查。**真实鼠标侧键的长按循环、松开停止仍待实体设备验收**，目前不作为正式稳定版发布。
 
-## Building from source
+## 下载安装
 
-Requires Xcode 26.4+ (macOS Tahoe).
+目前处于跨平台开发预览阶段，尚未发布稳定安装包。
 
-```sh
-# Open in Xcode and run, or build from the command line:
-xcodebuild -project Macrobot.xcodeproj -scheme Macrobot \
-  -configuration Debug -destination 'platform=macOS' build
+- [macOS 构建与发布记录](https://github.com/rizetngan/Actape/actions/workflows/build.yml)
+- [Windows 构建产物](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml)
+- [全部 Releases](https://github.com/rizetngan/Actape/releases)
+
+Windows CI 通过后，可从对应 GitHub Actions 运行记录的 Artifacts 下载预览包。正式版本发布后会在 Releases 提供安装说明与校验信息。
+
+## 使用方法
+
+### macOS
+
+1. 使用 Xcode 打开 `Actape.xcodeproj` 并运行。
+2. 首次启动后，在「系统设置 → 隐私与安全性」中为 Actape 授予「设备控制和数据访问」或旧版系统中的「辅助功能」权限。
+3. 点击录制，完成操作后停止录制；编辑步骤并测试执行。
+4. 在宏详情中绑定鼠标侧键，之后即可直接触发宏。
+
+### Windows
+
+1. 启动 `Actape.exe`。
+2. 新建宏，点击「开始录制」，在倒计时结束后执行要录制的操作。
+3. 按 F6 或点击「完成录制」，编辑步骤并点击「测试执行」。
+4. 点击「绑定侧键…」，直接按下鼠标侧键 4 或 5。
+5. 为该宏选择单击或按住模式；关闭主窗口后应用会留在系统托盘。
+
+## 开发
+
+### macOS
+
+要求 Xcode 26.4+ 与 macOS 26.4+。
+
+```bash
+xcodebuild -project Actape.xcodeproj -scheme Actape \
+  -configuration Debug -destination 'platform=macOS' \
+  CODE_SIGNING_ALLOWED=NO build
 ```
 
-The Xcode project uses a file-system-synchronized group, so anything added under
-`Macrobot/` is included automatically — no `project.pbxproj` edits needed.
+### Windows
 
-Pushes to `main` build a universal macOS app via GitHub Actions and upload a
-CI artifact. Public GitHub Releases require manually dispatching the build workflow (see [`.github/workflows/build.yml`](.github/workflows/build.yml)).
+要求 Windows 10/11 与 .NET 10 SDK。
 
-## How it works
+```powershell
+dotnet build Windows/Actape.Windows/Actape.Windows.csproj -c Release
 
-| Area | File |
-| ---- | ---- |
-| Recording (listen-only event tap, click coalescing) | [`EventRecorder.swift`](Macrobot/Recording/EventRecorder.swift) |
-| Playback (detached loop, speed scaling, drag interpolation) | [`EventPlayer.swift`](Macrobot/Playback/EventPlayer.swift) |
-| Global hotkeys (Carbon `RegisterEventHotKey`) | [`Hotkeys/`](Macrobot/Hotkeys/) |
-| Model (`Macro`, `MacroEvent`) | [`Models/`](Macrobot/Models/) |
-| Storage + import/export | [`MacroStore.swift`](Macrobot/Store/MacroStore.swift) |
+dotnet publish Windows/Actape.Windows/Actape.Windows.csproj -c Release -r win-x64 `
+  --self-contained true -p:PublishSingleFile=true
+```
+
+GitHub Actions 分别负责 macOS universal build 和 Windows x64 预览包构建。
+
+## 数据与兼容
+
+- macOS 数据：`~/Library/Application Support/Actape/macros.json`
+- Windows 数据：`%APPDATA%\Actape\Windows\macros.json`
+- 从旧版 Macrobot 升级时，首次启动会将原有宏文件复制到 Actape 的新目录，旧文件保留不删除。
+- 两个平台目前使用各自的数据模型；可通过 JSON 导入导出迁移兼容的宏数据。
+
+macOS 更换了独立 Bundle Identifier，升级后首次使用需要重新授予系统输入权限。
+
+部分鼠标厂商会将侧键转换为键盘事件，或不向系统发送标准 XBUTTON 事件；此类设备需要按具体型号验证。Windows 普通权限进程也无法可靠向管理员权限窗口注入输入。
+
+## 致谢与许可
+
+macOS 原始实现基于 [illixion/MacroBot](https://github.com/illixion/MacroBot)（MIT）继续开发；Windows 版本为独立的原生实现。感谢上游作者及开源社区。
+
+Actape 由 [rizetngan](https://github.com/rizetngan) 维护。项目保留上游 MIT 版权与许可要求。
+
+[MIT License](LICENSE) · [问题反馈](https://github.com/rizetngan/Actape/issues)
