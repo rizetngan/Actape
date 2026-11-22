@@ -470,10 +470,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AddStep_Click(object sender, RoutedEventArgs e)
     {
-        var menu = new ContextMenu { PlacementTarget = AddStepButton };
+        var menu = new System.Windows.Controls.ContextMenu { PlacementTarget = AddStepButton };
         foreach (var option in StepKindOptions)
         {
-            var item = new MenuItem { Header = option.Name, Tag = option.Value };
+            var item = new System.Windows.Controls.MenuItem { Header = option.Name, Tag = option.Value };
             item.Click += (_, _) =>
             {
                 if (SelectedMacro is null) return;
@@ -521,8 +521,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void MoreButton_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedMacro is null) return;
-        var menu = new ContextMenu { PlacementTarget = (System.Windows.Controls.Button)sender };
-        var duplicate = new MenuItem { Header = "复制当前宏" };
+        var menu = new System.Windows.Controls.ContextMenu { PlacementTarget = (System.Windows.Controls.Button)sender };
+        var duplicate = new System.Windows.Controls.MenuItem { Header = "复制当前宏" };
         duplicate.Click += (_, _) =>
         {
             var copy = JsonSerializer.Deserialize<Macro>(MacroRepository.SerializeMacro(SelectedMacro), MacroRepository.JsonOptions)!;
@@ -530,7 +530,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             foreach (var step in copy.Steps) step.Id = Guid.NewGuid();
             Macros.Add(copy); MacroList.SelectedItem = copy;
         };
-        var delete = new MenuItem { Header = "删除当前宏" };
+        var delete = new System.Windows.Controls.MenuItem { Header = "删除当前宏" };
         delete.Click += (_, _) =>
         {
             if (SelectedMacro is null) return;
