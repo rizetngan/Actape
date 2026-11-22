@@ -51,8 +51,8 @@ The **upstream** release is ad-hoc signed but **not notarized**, so Gatekeeper m
 
 Macrobot needs **Accessibility** access to observe and post events — a sandboxed
 app can't create a session-level event tap. On first launch it shows a banner;
-click it to open **System Settings → Privacy & Security → Accessibility** and
-enable Macrobot. The app re-checks every couple of seconds, so the banner clears
+click it to open **System Settings / Privacy & Security / Device Control and Data Access**
+(macOS 27) or **Accessibility** on older macOS versions, then enable Macrobot. The app re-checks every couple of seconds, so the banner clears
 as soon as you grant access.
 
 ## Default shortcuts
@@ -81,8 +81,8 @@ xcodebuild -project Macrobot.xcodeproj -scheme Macrobot \
 The Xcode project uses a file-system-synchronized group, so anything added under
 `Macrobot/` is included automatically — no `project.pbxproj` edits needed.
 
-Pushes to `main` build a universal release via GitHub Actions and publish the
-zipped app to Releases (see [`.github/workflows/build.yml`](.github/workflows/build.yml)).
+Pushes to `main` build a universal macOS app via GitHub Actions and upload a
+CI artifact. Public GitHub Releases require manually dispatching the build workflow (see [`.github/workflows/build.yml`](.github/workflows/build.yml)).
 
 ## How it works
 
