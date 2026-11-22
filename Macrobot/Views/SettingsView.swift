@@ -8,12 +8,12 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                ShortcutRecorderRow(title: "Toggle recording", config: $hotkeys.record)
-                ShortcutRecorderRow(title: "Toggle playback", config: $hotkeys.play)
+                ShortcutRecorderRow(title: "录制 / 停止录制", config: $hotkeys.record)
+                ShortcutRecorderRow(title: "执行 / 停止执行", config: $hotkeys.play)
             } header: {
-                Text("Global Shortcuts")
+                Text("全局快捷键")
             } footer: {
-                Text("These work system-wide, even when Macrobot isn’t focused. Function keys (F6, F7…) are recommended — a shortcut’s key won’t be captured while you record.")
+                Text("即使窗口未激活也能使用，建议设置 F6、F7 等功能键。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -21,7 +21,7 @@ struct SettingsView: View {
             Section {
                 HStack {
                     Spacer()
-                    Button("Restore Defaults") { hotkeys.resetToDefaults() }
+                    Button("恢复默认设置") { hotkeys.resetToDefaults() }
                 }
             }
         }
@@ -46,12 +46,12 @@ private struct ShortcutRecorderRow: View {
             Button {
                 listening ? stop() : start()
             } label: {
-                Text(listening ? "Press a shortcut…" : config.displayString)
+                Text(listening ? "请按快捷键…" : config.displayString)
                     .frame(minWidth: 130)
                     .foregroundStyle(listening ? Color.accentColor : .primary)
             }
             .buttonStyle(.bordered)
-            .help("Click, then press the key combination you want.")
+            .help("点击后直接按下要设置的快捷键，按 Esc 取消。")
         }
         .onDisappear(perform: stop)
     }

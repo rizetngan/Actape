@@ -18,13 +18,13 @@ struct MacrobotApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("New Macro") { store.addMacro() }
+                Button("新建宏") { store.addMacro() }
                     .keyboardShortcut("n", modifiers: [.command])
                 Divider()
-                Button("Import Macros…") { store.importFromFile() }
+                Button("导入宏…") { store.importFromFile() }
                     .keyboardShortcut("o", modifiers: [.command])
-                Menu("Export") {
-                    Button("Export Selected Macro…") {
+                Menu("导出") {
+                    Button("导出当前宏…") {
                         if let m = store.selectedMacro {
                             store.exportToFile([m], suggestedName: m.name)
                         }
@@ -32,19 +32,19 @@ struct MacrobotApp: App {
                     .keyboardShortcut("e", modifiers: [.command, .shift])
                     .disabled(store.selectedMacro == nil)
 
-                    Button("Export All Macros…") {
-                        store.exportToFile(store.macros, suggestedName: "Macros")
+                    Button("导出全部宏…") {
+                        store.exportToFile(store.macros, suggestedName: "全部宏")
                     }
                     .disabled(store.macros.isEmpty)
                 }
             }
-            CommandMenu("Macro") {
-                Button(store.isRecording ? "Stop Recording" : "Start Recording") {
+            CommandMenu("宏") {
+                Button(store.isRecording ? "结束录制" : "开始录制") {
                     store.toggleRecording()
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
 
-                Button(store.isPlaying ? "Stop Playback" : "Play Macro") {
+                Button(store.isPlaying ? "停止执行" : "执行宏") {
                     store.togglePlayback()
                 }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
@@ -52,7 +52,7 @@ struct MacrobotApp: App {
 
                 Divider()
 
-                Button("Open Accessibility Settings…") {
+                Button("打开辅助功能设置…") {
                     AccessibilityHelper.openSystemSettings()
                 }
             }

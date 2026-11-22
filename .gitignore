@@ -25,3 +25,18 @@ build/
 
 # VSCode
 .vscode/
+
+# Local transfer packages
+/dist/
+
+# Windows WPF / .NET
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+
+# Local SDKs and temporary files
+.tools/
+.tmp/

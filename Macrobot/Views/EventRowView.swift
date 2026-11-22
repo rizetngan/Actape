@@ -40,7 +40,7 @@ struct EventRowView: View {
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")
                 }
                 .buttonStyle(.borderless)
-                .help(expanded ? "Collapse" : "Edit fields")
+                .help(expanded ? "收起" : "编辑参数")
 
                 Button(role: .destructive) {
                     onDelete()
@@ -48,7 +48,7 @@ struct EventRowView: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.borderless)
-                .help("Delete this step")
+                .help("删除这一步")
             }
 
             if expanded {
@@ -104,10 +104,10 @@ struct EventRowView: View {
                 kindPicker
                     .frame(width: 140)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Template").font(.caption).foregroundStyle(.secondary)
-                    TextField("e.g. {n}\\t or leave blank", text: $event.text)
+                    Text("输入内容").font(.caption).foregroundStyle(.secondary)
+                    TextField("输入文本，或使用 {n}", text: $event.text)
                         .textFieldStyle(.roundedBorder)
-                    Text("“{n}” is replaced by the counter. Use \\t / \\n for Tab / Return.")
+                    Text("使用 {n} 插入序列；\\t 为 Tab，\\n 为回车。")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -115,7 +115,7 @@ struct EventRowView: View {
 
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Counter").font(.caption).foregroundStyle(.secondary)
+                    Text("序列类型").font(.caption).foregroundStyle(.secondary)
                     Picker("", selection: $event.seqFormat) {
                         ForEach(SequenceFormat.allCases, id: \.self) { f in
                             Text(f.displayName).tag(f)
@@ -127,7 +127,7 @@ struct EventRowView: View {
 
                 if event.seqFormat != .none {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Start").font(.caption).foregroundStyle(.secondary)
+                        Text("起始值").font(.caption).foregroundStyle(.secondary)
                         if event.seqFormat.isTime {
                             DatePicker("", selection: timeBinding($event.seqStart),
                                        displayedComponents: .hourAndMinute)
@@ -139,7 +139,7 @@ struct EventRowView: View {
                         }
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(event.seqFormat.isTime ? "Step (min)" : "Step")
+                        Text(event.seqFormat.isTime ? "间隔（分钟）" : "步长")
                             .font(.caption).foregroundStyle(.secondary)
                         TextField("", value: $event.seqStep, formatter: Self.signedIntFormatter)
                             .frame(width: 70)
@@ -147,7 +147,7 @@ struct EventRowView: View {
                     }
                     if event.seqFormat == .number {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Pad").font(.caption).foregroundStyle(.secondary)
+                            Text("补零位数").font(.caption).foregroundStyle(.secondary)
                             TextField("", value: $event.seqPad, formatter: Self.intFormatter)
                                 .frame(width: 50)
                                 .textFieldStyle(.roundedBorder)
@@ -158,28 +158,28 @@ struct EventRowView: View {
 
             if event.seqFormat.isTime {
                 HStack(alignment: .center, spacing: 12) {
-                    Toggle("Stop run at", isOn: $event.seqStopEnabled)
+                    Toggle("达到此时间停止", isOn: $event.seqStopEnabled)
                         .toggleStyle(.checkbox)
                     DatePicker("", selection: timeBinding($event.seqStop),
                                displayedComponents: .hourAndMinute)
                         .labelsHidden()
                         .disabled(!event.seqStopEnabled)
-                    Text("Halts the whole macro once the sequence reaches this time (wraps past 23:59).")
+                    Text("序列达到设定时间后停止整个宏。")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
 
             if event.seqFormat != .none {
-                Text("Preview (per repeat): " + sequencePreview)
+                Text("输入预览：" + sequencePreview)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }
 
             Text(event.seqStopEnabled && event.seqFormat.isTime
-                 ? "The counter advances once per macro repeat — set Repeat to ∞ (Infinite) and the run stops itself at the time above."
-                 : "The counter advances once per macro repeat — set the macro’s Repeat count to how many values you need.")
+                 ? "每轮循环更新一次序列，达到停止时间后结束。"
+                 : "每轮循环更新一次序列，可通过执行次数控制数量。")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -228,7 +228,7 @@ struct EventRowView: View {
 
     private var kindPicker: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Type").font(.caption).foregroundStyle(.secondary)
+            Text("操作类型").font(.caption).foregroundStyle(.secondary)
             Picker("", selection: $event.kind) {
                 ForEach(MacroEventKind.allCases, id: \.self) { k in
                     Text(k.displayName).tag(k)
@@ -256,7 +256,7 @@ struct EventRowView: View {
 
     private var buttonPicker: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Button").font(.caption).foregroundStyle(.secondary)
+            Text("鼠标按键").font(.caption).foregroundStyle(.secondary)
             Picker("", selection: $event.button) {
                 ForEach(MouseButton.allCases, id: \.self) { b in
                     Text(b.displayName).tag(b)
@@ -268,7 +268,7 @@ struct EventRowView: View {
 
     private var clickCountField: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Click count").font(.caption).foregroundStyle(.secondary)
+            Text("点击次数").font(.caption).foregroundStyle(.secondary)
             Stepper(value: $event.clickCount, in: 1...5) {
                 Text("\(event.clickCount)")
             }
@@ -277,7 +277,7 @@ struct EventRowView: View {
 
     private var keyCodeField: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Key code").font(.caption).foregroundStyle(.secondary)
+            Text("按键代码").font(.caption).foregroundStyle(.secondary)
             TextField("", value: $event.keyCode, formatter: Self.intFormatter)
                 .textFieldStyle(.roundedBorder)
         }
@@ -285,7 +285,7 @@ struct EventRowView: View {
 
     private var modifierToggles: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Modifiers").font(.caption).foregroundStyle(.secondary)
+            Text("组合键").font(.caption).foregroundStyle(.secondary)
             HStack(spacing: 6) {
                 modifierToggle("⇧",  CGEventFlags.maskShift)
                 modifierToggle("⌃",  CGEventFlags.maskControl)

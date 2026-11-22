@@ -1,5 +1,10 @@
 # Macrobot
 
+[简体中文说明 / 简体中文 README](README.zh-CN.md)
+
+> The macOS direct side-button build was tested with a physical mouse. Windows support is under development. Hold-to-repeat mode is **not** yet implemented in the macOS build.
+
+
 A lightweight macOS app for recording and replaying mouse + keyboard macros. It
 captures global input via a `CGEventTap` and plays it back with `CGEvent.post`,
 so it can drive any app — not just itself.
@@ -22,13 +27,21 @@ so it can drive any app — not just itself.
 - **Configurable global shortcuts** for record and play (default **F6** / **F7**).
 - **Import / export** macros as JSON, and automatic persistence between launches.
 
+## Direct mouse side-button macro trigger (custom fork)
+
+This branch adds a built-in mouse side-button listener; no separate mouse remapping app is required. Open a macro, click **Bind button…**, then press the physical mouse side button you want to use. The assignment is saved with the macro and can be cleared or reassigned. During normal use, pressing the bound side button runs the recorded macro directly (press again to stop playback). The original Back/Forward action of the mapped side button is suppressed.
+
+The implementation listens for macOS CoreGraphics extra mouse button events, so buttons transformed into keyboard shortcuts by vendor firmware/software may need a separate compatibility path.
+
+For architecture, build and manual acceptance checks, see [docs/MOUSE_BUTTON_TRIGGER.md](docs/MOUSE_BUTTON_TRIGGER.md). The original MIT license is retained.
+
 ## Download
 
-Grab the latest build from the [**Releases**](../../releases) page —
-`Macrobot-*.zip` is a universal (Apple Silicon + Intel) app.
+**Custom fork:** build this modified source with Xcode as documented below; the upstream Releases do **not** contain the direct side-button feature.
 
-The build is ad-hoc signed but **not notarized**, so Gatekeeper will warn on first
-launch. To open it:
+The upstream project publishes a universal (Apple Silicon + Intel) `Macrobot-*.zip`, but that binary is not this modified version.
+
+The **upstream** release is ad-hoc signed but **not notarized**, so Gatekeeper may warn on first launch. Custom builds must be signed appropriately before distribution. To open an app you trust:
 
 1. Unzip and move `Macrobot.app` to `/Applications`.
 2. Right-click the app → **Open** → **Open** (once), or run

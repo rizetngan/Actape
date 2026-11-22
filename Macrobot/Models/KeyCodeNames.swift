@@ -17,11 +17,11 @@ enum KeyCodeNames {
         UInt16(kVK_ANSI_3): "3", UInt16(kVK_ANSI_4): "4", UInt16(kVK_ANSI_5): "5",
         UInt16(kVK_ANSI_6): "6", UInt16(kVK_ANSI_7): "7", UInt16(kVK_ANSI_8): "8",
         UInt16(kVK_ANSI_9): "9",
-        UInt16(kVK_Space): "Space",
-        UInt16(kVK_Return): "Return",
+        UInt16(kVK_Space): "空格",
+        UInt16(kVK_Return): "回车",
         UInt16(kVK_Tab): "Tab",
-        UInt16(kVK_Delete): "Delete",
-        UInt16(kVK_ForwardDelete): "FwdDelete",
+        UInt16(kVK_Delete): "退格",
+        UInt16(kVK_ForwardDelete): "删除",
         UInt16(kVK_Escape): "Esc",
         UInt16(kVK_LeftArrow): "←",
         UInt16(kVK_RightArrow): "→",
@@ -46,11 +46,11 @@ enum KeyCodeNames {
 
     /// Human label for a key alone (no modifiers), e.g. "F6", "A", "Space".
     static func keyLabel(for keyCode: UInt16) -> String {
-        map[keyCode] ?? "Key 0x\(String(keyCode, radix: 16, uppercase: true))"
+        map[keyCode] ?? "键码 0x\(String(keyCode, radix: 16, uppercase: true))"
     }
 
     static func label(for keyCode: UInt16, modifiers: UInt64) -> String {
-        let name = map[keyCode] ?? "Key 0x\(String(keyCode, radix: 16, uppercase: true))"
+        let name = map[keyCode] ?? "键码 0x\(String(keyCode, radix: 16, uppercase: true))"
         let mods = modifierLabel(for: modifiers)
         return mods.isEmpty ? name : "\(mods)\(name)"
     }

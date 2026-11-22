@@ -38,10 +38,10 @@ struct MacroDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Title + summary
             VStack(alignment: .leading, spacing: 2) {
-                TextField("Macro name", text: $macro.name)
+                TextField("宏名称", text: $macro.name)
                     .textFieldStyle(.plain)
                     .font(.title2.bold())
-                Text("\(macro.events.count) \(macro.events.count == 1 ? "step" : "steps") · \(formatted(ms: macro.totalDurationMs))")
+                Text("\(macro.events.count) 步 · \(formatted(ms: macro.totalDurationMs))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -53,14 +53,48 @@ struct MacroDetailView: View {
                 speedControl
                 Spacer(minLength: 0)
             }
+            mouseTriggerControl
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
 
+    private var mouseTriggerControl: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "computermouse")
+                .foregroundStyle(.secondary)
+            Text("触发侧键")
+                .font(.subheadline)
+            Spacer()
+            Button {
+                if store.capturingTriggerFor == macro.id {
+                    store.cancelTriggerCapture()
+                } else {
+                    store.beginTriggerCapture(for: macro.id)
+                }
+            } label: {
+                Text(store.capturingTriggerFor == macro.id
+                     ? "请按鼠标侧键…（取消）"
+                     : macro.triggerButton.map { "侧键 \($0)" } ?? "绑定侧键…")
+                    .frame(minWidth: 150)
+            }
+            .disabled(store.isRecording || store.isPlaying)
+            .help("点击后按一下需要绑定的鼠标侧键。")
+            if macro.triggerButton != nil {
+                Button {
+                    store.clearTrigger(for: macro.id)
+                } label: {
+                    Image(systemName: "xmark.circle")
+                }
+                .buttonStyle(.borderless)
+                .help("清除侧键绑定")
+            }
+        }
+    }
+
     private var repeatControl: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("REPEAT")
+            Text("执行次数")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
@@ -78,16 +112,16 @@ struct MacroDetailView: View {
                     }
                     Text("×").foregroundStyle(.secondary)
                 }
-                Toggle("Loop forever", isOn: infiniteBinding)
+                Toggle("无限循环", isOn: infiniteBinding)
                     .toggleStyle(.checkbox)
-                    .help("Repeat until you press Stop, or a Type-Text stop time is reached.")
+                    .help("持续循环，直到手动停止或满足停止条件。")
             }
         }
     }
 
     private var speedControl: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("SPEED")
+            Text("执行速度")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
@@ -103,7 +137,7 @@ struct MacroDetailView: View {
                 }
                 .buttonStyle(.borderless)
                 .controlSize(.small)
-                .help("Reset to 1.00×")
+                .help("恢复为 1 倍速")
                 .disabled(abs(macro.playbackSpeed - 1.0) < 0.001)
             }
         }
@@ -122,14 +156,14 @@ struct MacroDetailView: View {
         Group {
             if macro.events.isEmpty {
                 ContentUnavailableView {
-                    Label("No events yet", systemImage: "waveform.path")
+                    Label("还没有操作步骤", systemImage: "waveform.path")
                 } description: {
-                    Text("Press F6 (or the record button) to start capturing clicks, drags, scrolls and keyboard input.")
+                    Text("点击「开始录制」或按 F6，记录鼠标与键盘操作。")
                 } actions: {
                     Button {
                         store.toggleRecording()
                     } label: {
-                        Label(store.isRecording ? "Stop Recording" : "Start Recording",
+                        Label(store.isRecording ? "结束录制" : "开始录制",
                               systemImage: store.isRecording ? "stop.circle.fill" : "record.circle")
                     }
                     .controlSize(.large)
@@ -163,15 +197,15 @@ struct MacroDetailView: View {
                 Button {
                     addBlankEvent()
                 } label: {
-                    Label("Mouse Click", systemImage: "cursorarrow.click")
+                    Label("鼠标点击", systemImage: "cursorarrow.click")
                 }
                 Button {
                     addTypeTextEvent()
                 } label: {
-                    Label("Type Text / Sequence", systemImage: "character.cursor.ibeam")
+                    Label("输入文本 / 序列", systemImage: "character.cursor.ibeam")
                 }
             } label: {
-                Label("Add Step", systemImage: "plus")
+                Label("添加步骤", systemImage: "plus")
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -179,13 +213,13 @@ struct MacroDetailView: View {
             Button {
                 clearAll()
             } label: {
-                Label("Clear All", systemImage: "xmark.octagon")
+                Label("清空步骤", systemImage: "xmark.octagon")
             }
             .disabled(macro.events.isEmpty)
 
             Spacer()
 
-            Text("Tip: drag rows to reorder. Use a row’s 🗑 button to delete a step.")
+            Text("拖动调整顺序")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

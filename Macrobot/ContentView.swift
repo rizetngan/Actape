@@ -15,24 +15,28 @@ struct ContentView: View {
             // and their actions), per the macOS Tahoe layout — it spans the right
             // column only and leaves the sidebar's own bottom bar untouched.
             VStack(spacing: 0) {
+                if showingAccessibilityBanner {
+                    AccessibilityBanner {
+                        AccessibilityHelper.openSystemSettings()
+                    }
+                    Divider()
+                }
                 detail
                 statusBar
             }
         }
         .toolbar { toolbarContent }
         .frame(minWidth: 880, minHeight: 540)
-        .safeAreaInset(edge: .top) {
-            if showingAccessibilityBanner {
-                AccessibilityBanner {
-                    AccessibilityHelper.openSystemSettings()
-                }
-            }
-        }
         .onAppear {
             showingAccessibilityBanner = !AccessibilityHelper.isTrusted(prompt: false)
+            if !showingAccessibilityBanner { store.ensureTriggerMonitor() }
         }
         .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in
             showingAccessibilityBanner = !AccessibilityHelper.isTrusted(prompt: false)
+            if !showingAccessibilityBanner { store.ensureTriggerMonitor() }
+        }
+        .onChange(of: store.selectedMacroId) {
+            store.cancelTriggerCapture()
         }
     }
 
@@ -55,8 +59,8 @@ struct ContentView: View {
 
                 if let p = store.playbackProgress, store.isPlaying {
                     let total = store.selectedMacro?.repeatCount ?? 0
-                    let loop = total == 0 ? "Loop \(p.rep) · ∞" : "Loop \(p.rep)/\(total)"
-                    Text("\(loop) · step \(p.step)")
+                    let loop = total == 0 ? "循环第 \(p.rep) 次 · ∞" : "循环 \(p.rep)/\(total)"
+                    Text("\(loop) · 步骤 \(p.step)")
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
@@ -78,10 +82,10 @@ struct ContentView: View {
                     MacroRow(macro: macro, isPlayingTarget: store.isPlaying && store.selectedMacroId == macro.id)
                         .tag(macro.id)
                         .contextMenu {
-                            Button("Rename") { renameMacroId = macro.id; renameText = macro.name }
-                            Button("Duplicate") { store.duplicateMacro(id: macro.id) }
+                            Button("重命名") { renameMacroId = macro.id; renameText = macro.name }
+                            Button("复制宏") { store.duplicateMacro(id: macro.id) }
                             Divider()
-                            Button("Delete", role: .destructive) {
+                            Button("删除", role: .destructive) {
                                 store.deleteMacro(id: macro.id)
                             }
                         }
@@ -92,16 +96,16 @@ struct ContentView: View {
                 }
             }
             .listStyle(.sidebar)
-            .alert("Rename macro", isPresented: Binding(
+            .alert("重命名宏", isPresented: Binding(
                 get: { renameMacroId != nil },
                 set: { if !$0 { renameMacroId = nil } }
             )) {
-                TextField("Name", text: $renameText)
-                Button("Save") {
+                TextField("名称", text: $renameText)
+                Button("保存") {
                     if let id = renameMacroId { store.renameMacro(id: id, to: renameText) }
                     renameMacroId = nil
                 }
-                Button("Cancel", role: .cancel) { renameMacroId = nil }
+                Button("取消", role: .cancel) { renameMacroId = nil }
             }
 
             Divider()
@@ -112,7 +116,7 @@ struct ContentView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
-                .help("New macro")
+                .help("新建宏")
 
                 Button {
                     if let id = store.selectedMacroId {
@@ -122,11 +126,11 @@ struct ContentView: View {
                     Image(systemName: "minus")
                 }
                 .disabled(store.selectedMacroId == nil)
-                .help("Delete macro")
+                .help("删除宏")
 
                 Spacer()
 
-                Text(store.macros.count == 1 ? "1 macro" : "\(store.macros.count) macros")
+                Text("\(store.macros.count) 个宏")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -147,11 +151,11 @@ struct ContentView: View {
                 .id(id)
         } else {
             ContentUnavailableView {
-                Label("No Macro Selected", systemImage: "wand.and.rays")
+                Label("尚未选择宏", systemImage: "wand.and.rays")
             } description: {
-                Text("Create a new macro from the sidebar, then press \(Image(systemName: "record.circle")) to record.")
+                Text("新建一个宏，再点击录制按钮开始记录操作。")
             } actions: {
-                Button("New Macro") { store.addMacro() }
+                Button("新建宏") { store.addMacro() }
                     .controlSize(.large)
             }
         }
@@ -165,22 +169,22 @@ struct ContentView: View {
             Button {
                 store.toggleRecording()
             } label: {
-                Label(store.isRecording ? "Stop Recording" : "Record",
+                Label(store.isRecording ? "结束录制" : "开始录制",
                       systemImage: store.isRecording ? "stop.circle.fill" : "record.circle")
             }
             .tint(store.isRecording ? .red : nil)
             .disabled(store.isPlaying)
-            .help("Toggle recording (\(hotkeys.record.displayString))")
+            .help("开始或结束录制（\(hotkeys.record.displayString)）")
 
             Button {
                 store.togglePlayback()
             } label: {
-                Label(store.isPlaying ? "Stop" : "Play",
+                Label(store.isPlaying ? "停止" : "执行",
                       systemImage: store.isPlaying ? "stop.fill" : "play.fill")
             }
             .tint(store.isPlaying ? .green : nil)
             .disabled((store.selectedMacro?.events.isEmpty ?? true) || store.isRecording)
-            .help("Toggle playback (\(hotkeys.play.displayString))")
+            .help("执行或停止宏（\(hotkeys.play.displayString)）")
         }
     }
 }
@@ -195,9 +199,15 @@ private struct MacroRow: View {
                 .foregroundStyle(isPlayingTarget ? Color.green : Color.accentColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text(macro.name).font(.body)
-                Text("\(macro.events.count) events · \(formatted(ms: macro.totalDurationMs))")
+                Text("\(macro.events.count) 步 · \(formatted(ms: macro.totalDurationMs))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            if let button = macro.triggerButton {
+                Image(systemName: "computermouse")
+                    .foregroundStyle(.secondary)
+                    .help("鼠标侧键 \(button)")
             }
         }
     }
@@ -217,13 +227,13 @@ private struct AccessibilityBanner: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.yellow)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Accessibility access is required").font(.headline)
-                Text("Macrobot needs Accessibility permission to record and replay events.")
+                Text("需要设备控制和数据访问权限").font(.headline)
+                Text("在系统设置中为 Macrobot 开启「设备控制和数据访问」，才能录制和执行宏。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Open System Settings", action: onOpen)
+            Button("打开系统设置", action: onOpen)
                 .controlSize(.small)
         }
         .padding(.horizontal, 16)

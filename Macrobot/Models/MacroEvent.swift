@@ -16,9 +16,9 @@ enum MouseButton: Int, Codable, Hashable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .left: return "Left"
-        case .right: return "Right"
-        case .other: return "Middle"
+        case .left: return "左键"
+        case .right: return "右键"
+        case .other: return "中键"
         }
     }
 }
@@ -37,16 +37,16 @@ enum MacroEventKind: String, Codable, CaseIterable, Hashable {
 
     var displayName: String {
         switch self {
-        case .click: return "Click"
-        case .mouseDown: return "Mouse Down"
-        case .mouseUp: return "Mouse Up"
-        case .mouseDrag: return "Mouse Drag"
-        case .mouseMove: return "Mouse Move"
-        case .keyDown: return "Key Down"
-        case .keyUp: return "Key Up"
-        case .flagsChanged: return "Modifier"
-        case .scroll: return "Scroll"
-        case .typeText: return "Type Text"
+        case .click: return "点击"
+        case .mouseDown: return "鼠标按下"
+        case .mouseUp: return "鼠标松开"
+        case .mouseDrag: return "鼠标拖动"
+        case .mouseMove: return "鼠标移动"
+        case .keyDown: return "按键按下"
+        case .keyUp: return "按键松开"
+        case .flagsChanged: return "修饰键"
+        case .scroll: return "滚动"
+        case .typeText: return "输入文本"
         }
     }
 
@@ -89,10 +89,10 @@ enum SequenceFormat: String, Codable, CaseIterable, Hashable {
 
     var displayName: String {
         switch self {
-        case .none: return "Static text"
-        case .number: return "Number"
-        case .timeHHMM: return "Time 24h (HHMM)"
-        case .timeColon: return "Time 24h (HH:MM)"
+        case .none: return "固定文本"
+        case .number: return "数字递增"
+        case .timeHHMM: return "24 小时（HHMM）"
+        case .timeColon: return "24 小时（HH:MM）"
         }
     }
 
@@ -242,36 +242,36 @@ struct MacroEvent: Identifiable, Codable, Hashable {
     var summary: String {
         switch kind {
         case .click:
-            return "\(button.displayName) Click @ (\(Int(x)), \(Int(y)))" +
+            return "\(button.displayName)点击 (\(Int(x)), \(Int(y)))" +
                 (clickCount > 1 ? " ×\(clickCount)" : "")
         case .mouseDown:
-            return "\(button.displayName) Down @ (\(Int(x)), \(Int(y)))" +
+            return "\(button.displayName)按下 (\(Int(x)), \(Int(y)))" +
                 (clickCount > 1 ? " ×\(clickCount)" : "")
         case .mouseUp:
-            return "\(button.displayName) Up @ (\(Int(x)), \(Int(y)))"
+            return "\(button.displayName)松开 (\(Int(x)), \(Int(y)))"
         case .mouseDrag:
-            return "\(button.displayName) Drag → (\(Int(x)), \(Int(y)))"
+            return "\(button.displayName)拖动至 (\(Int(x)), \(Int(y)))"
         case .mouseMove:
-            return "Move → (\(Int(x)), \(Int(y)))"
+            return "移动至 (\(Int(x)), \(Int(y)))"
         case .keyDown:
-            return "Key Down: \(KeyCodeNames.label(for: keyCode, modifiers: modifierFlags))"
+            return "按下：\(KeyCodeNames.label(for: keyCode, modifiers: modifierFlags))"
         case .keyUp:
-            return "Key Up: \(KeyCodeNames.label(for: keyCode, modifiers: modifierFlags))"
+            return "松开：\(KeyCodeNames.label(for: keyCode, modifiers: modifierFlags))"
         case .flagsChanged:
-            return "Modifier: \(KeyCodeNames.modifierLabel(for: modifierFlags))"
+            return "修饰键：\(KeyCodeNames.modifierLabel(for: modifierFlags))"
         case .scroll:
-            return "Scroll Δ(\(Int(scrollDeltaX)), \(Int(scrollDeltaY)))"
+            return "滚动 Δ(\(Int(scrollDeltaX)), \(Int(scrollDeltaY)))"
         case .typeText:
             let first = renderedText(iteration: 0)
             let preview = first.replacingOccurrences(of: "\n", with: "⏎")
                                .replacingOccurrences(of: "\t", with: "⇥")
             if seqFormat == .none {
-                return "Type: “\(preview)”"
+                return "输入：“\(preview)”"
             }
             let next = renderedText(iteration: 1)
                 .replacingOccurrences(of: "\n", with: "⏎")
                 .replacingOccurrences(of: "\t", with: "⇥")
-            return "Type: “\(preview)” → “\(next)” …"
+            return "输入：“\(preview)” → “\(next)” …"
         }
     }
 }

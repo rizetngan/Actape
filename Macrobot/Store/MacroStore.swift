@@ -10,9 +10,11 @@ final class MacroStore: ObservableObject {
     @Published var selectedMacroId: UUID?
     @Published var isRecording: Bool = false
     @Published var isPlaying: Bool = false
-    @Published var statusMessage: String = "Ready"
+    @Published var statusMessage: String = "就绪"
     @Published var playbackProgress: (rep: Int, step: Int)?
+    @Published var capturingTriggerFor: UUID?
 
+    private let mouseButtons = MouseTriggerMonitor()
     private let recorder = EventRecorder()
     private let player = EventPlayer()
     private let storageURL: URL
@@ -27,6 +29,16 @@ final class MacroStore: ObservableObject {
         load()
         if selectedMacroId == nil {
             selectedMacroId = macros.first?.id
+        }
+
+        mouseButtons.resolveMacro = { [weak self] button in
+            self?.macros.first(where: { $0.triggerButton == button })?.id
+        }
+        mouseButtons.onCapture = { [weak self] macroID, button in
+            self?.assignTrigger(button, to: macroID)
+        }
+        mouseButtons.onTrigger = { [weak self] macroID in
+            self?.triggerMacro(macroID)
         }
     }
 
@@ -46,7 +58,7 @@ final class MacroStore: ObservableObject {
             let data = try enc.encode(macros)
             try data.write(to: storageURL, options: .atomic)
         } catch {
-            statusMessage = "Save failed: \(error.localizedDescription)"
+            statusMessage = "保存失败：\(error.localizedDescription)"
         }
     }
 
@@ -64,7 +76,7 @@ final class MacroStore: ObservableObject {
     /// Prompts for a destination and writes the given macros as a `.json` file.
     func exportToFile(_ macrosToExport: [Macro], suggestedName: String) {
         guard !macrosToExport.isEmpty else {
-            statusMessage = "Nothing to export."
+            statusMessage = "没有可导出的宏。"
             return
         }
         let panel = NSSavePanel()
@@ -77,9 +89,9 @@ final class MacroStore: ObservableObject {
             enc.outputFormatting = [.prettyPrinted, .sortedKeys]
             try enc.encode(macrosToExport).write(to: url, options: .atomic)
             let n = macrosToExport.count
-            statusMessage = "Exported \(n) \(n == 1 ? "macro" : "macros") to \(url.lastPathComponent)."
+            statusMessage = "已导出 \(n) 个宏：\(url.lastPathComponent)"
         } catch {
-            statusMessage = "Export failed: \(error.localizedDescription)"
+            statusMessage = "导出失败：\(error.localizedDescription)"
         }
     }
 
@@ -101,21 +113,23 @@ final class MacroStore: ObservableObject {
                 imported = [try dec.decode(Macro.self, from: data)]
             }
             guard !imported.isEmpty else {
-                statusMessage = "No macros found in \(url.lastPathComponent)."
+                statusMessage = "文件中没有宏：\(url.lastPathComponent)"
                 return
             }
             let fresh = imported.map { m -> Macro in
                 var copy = m
                 copy.id = UUID()
+                // Imported macros must be rebound explicitly to avoid stealing a side button.
+                copy.triggerButton = nil
                 copy.events = m.events.map { e in var ev = e; ev.id = UUID(); return ev }
                 return copy
             }
             macros.append(contentsOf: fresh)
             selectedMacroId = fresh.first?.id
             scheduleSave()
-            statusMessage = "Imported \(fresh.count) \(fresh.count == 1 ? "macro" : "macros") from \(url.lastPathComponent)."
+            statusMessage = "已从 \(url.lastPathComponent) 导入 \(fresh.count) 个宏"
         } catch {
-            statusMessage = "Import failed: \(error.localizedDescription)"
+            statusMessage = "导入失败：\(error.localizedDescription)"
         }
     }
 
@@ -140,13 +154,14 @@ final class MacroStore: ObservableObject {
     }
 
     func addMacro() {
-        let newMacro = Macro(name: "Macro \(macros.count + 1)")
+        let newMacro = Macro(name: "宏 \(macros.count + 1)")
         macros.append(newMacro)
         selectedMacroId = newMacro.id
         scheduleSave()
     }
 
     func deleteMacro(id: UUID) {
+        if capturingTriggerFor == id { cancelTriggerCapture() }
         macros.removeAll { $0.id == id }
         if selectedMacroId == id {
             selectedMacroId = macros.first?.id
@@ -158,7 +173,8 @@ final class MacroStore: ObservableObject {
         guard let original = macros.first(where: { $0.id == id }) else { return }
         var copy = original
         copy.id = UUID()
-        copy.name = "\(original.name) Copy"
+        copy.name = "\(original.name) 副本"
+        copy.triggerButton = nil // Do not create two macros for the same physical button.
         copy.events = original.events.map { evt in
             var e = evt
             e.id = UUID()
@@ -208,6 +224,71 @@ final class MacroStore: ObservableObject {
         scheduleSave()
     }
 
+    // MARK: - Direct mouse-button triggers
+
+    func ensureTriggerMonitor() {
+        guard AccessibilityHelper.isTrusted(prompt: false) else { return }
+        if !mouseButtons.start() {
+            statusMessage = "无法监听鼠标侧键，请检查设备控制和数据访问权限。"
+        }
+    }
+
+    func beginTriggerCapture(for macroID: UUID) {
+        guard macros.contains(where: { $0.id == macroID }) else { return }
+        guard !isRecording, !isPlaying else {
+            statusMessage = "请先结束录制或执行，再绑定侧键。"
+            return
+        }
+        guard AccessibilityHelper.isTrusted(prompt: false) else {
+            _ = AccessibilityHelper.isTrusted(prompt: true)
+            statusMessage = "请先授权辅助功能，再重新绑定侧键。"
+            return
+        }
+        guard mouseButtons.start() else {
+            statusMessage = "无法检测鼠标侧键输入。"
+            return
+        }
+        capturingTriggerFor = macroID
+        mouseButtons.captureNextButton(for: macroID)
+        statusMessage = "请按一下要绑定的鼠标侧键。"
+    }
+
+    func cancelTriggerCapture() {
+        capturingTriggerFor = nil
+        mouseButtons.cancelCapture()
+    }
+
+    func clearTrigger(for macroID: UUID) {
+        guard let index = macros.firstIndex(where: { $0.id == macroID }) else { return }
+        macros[index].triggerButton = nil
+        cancelTriggerCapture()
+        scheduleSave()
+        statusMessage = "已清除侧键绑定。"
+    }
+
+    private func assignTrigger(_ button: Int, to macroID: UUID) {
+        guard let index = macros.firstIndex(where: { $0.id == macroID }) else { return }
+        // One physical button controls one macro. Rebinding moves the assignment.
+        for i in macros.indices where macros[i].triggerButton == button {
+            macros[i].triggerButton = nil
+        }
+        macros[index].triggerButton = button
+        cancelTriggerCapture()
+        scheduleSave()
+        statusMessage = "已将侧键 \(button) 绑定至「\(macros[index].name)」。"
+    }
+
+    private func triggerMacro(_ macroID: UUID) {
+        guard !isRecording, capturingTriggerFor == nil else { return }
+        if isPlaying {
+            stopPlayback()
+            return
+        }
+        guard macros.contains(where: { $0.id == macroID }) else { return }
+        selectedMacroId = macroID
+        playSelected()
+    }
+
     // MARK: - Recording
 
     /// Keep the recorder from capturing the global toggle shortcuts.
@@ -219,7 +300,7 @@ final class MacroStore: ObservableObject {
         guard !isRecording, !isPlaying else { return }
 
         if !AccessibilityHelper.isTrusted(prompt: false) {
-            statusMessage = "Accessibility permission required. Click the banner to grant access."
+            statusMessage = "需要设备控制和数据访问权限，请点击顶部提示授权。"
             _ = AccessibilityHelper.isTrusted(prompt: true)
             return
         }
@@ -238,10 +319,12 @@ final class MacroStore: ObservableObject {
         }
 
         if started {
+            cancelTriggerCapture()
+            mouseButtons.isSuspended = true
             isRecording = true
-            statusMessage = "Recording… press F6 to stop."
+            statusMessage = "正在录制… 按 F6 结束。"
         } else {
-            statusMessage = "Failed to start event tap. Grant Accessibility access."
+            statusMessage = "录制启动失败，请检查设备控制和数据访问权限。"
         }
     }
 
@@ -249,7 +332,8 @@ final class MacroStore: ObservableObject {
         guard isRecording else { return }
         recorder.stop()
         isRecording = false
-        statusMessage = "Stopped. \(selectedMacro?.events.count ?? 0) events recorded."
+        mouseButtons.isSuspended = false
+        statusMessage = "录制完成，共 \(selectedMacro?.events.count ?? 0) 步。"
         scheduleSave()
     }
 
@@ -266,11 +350,11 @@ final class MacroStore: ObservableObject {
     func playSelected() {
         guard !isRecording else { return }
         guard let macro = selectedMacro, !macro.events.isEmpty else {
-            statusMessage = "Nothing to play."
+            statusMessage = "没有可执行的步骤。"
             return
         }
         if !AccessibilityHelper.isTrusted(prompt: false) {
-            statusMessage = "Accessibility permission required for playback."
+            statusMessage = "执行宏需要设备控制和数据访问权限。"
             _ = AccessibilityHelper.isTrusted(prompt: true)
             return
         }
@@ -278,7 +362,7 @@ final class MacroStore: ObservableObject {
 
         isPlaying = true
         playbackProgress = (1, 0)
-        statusMessage = "Playing \(macro.name)…"
+        statusMessage = "正在执行「\(macro.name)」…"
 
         player.play(macro: macro,
                     onProgress: { [weak self] rep, step in
@@ -288,7 +372,7 @@ final class MacroStore: ObservableObject {
                         guard let self = self else { return }
                         self.isPlaying = false
                         self.playbackProgress = nil
-                        self.statusMessage = cancelled ? "Playback stopped." : "Playback finished."
+                        self.statusMessage = cancelled ? "已停止执行。" : "执行完成。"
                     })
     }
 
@@ -297,7 +381,7 @@ final class MacroStore: ObservableObject {
         player.cancel()
         isPlaying = false
         playbackProgress = nil
-        statusMessage = "Playback stopped."
+        statusMessage = "已停止执行。"
     }
 
     func togglePlayback() {

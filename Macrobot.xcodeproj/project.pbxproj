@@ -86,9 +86,10 @@
 				};
 			};
 			buildConfigurationList = 1DFC79302F9F687200A45B6E /* Build configuration list for PBXProject "Macrobot" */;
-			developmentRegion = en;
+			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				"zh-Hans",
 				en,
 				Base,
 			);
