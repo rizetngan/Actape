@@ -253,15 +253,6 @@
                         <ScrollViewer x:Name="StepEditorPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                             <StackPanel>
                                 <TextBlock Text="编辑步骤" FontSize="14" FontWeight="SemiBold" Foreground="#273752" Margin="0,0,0,15"/>
-                                <StackPanel x:Name="ActionSwitchPanel" Margin="0,0,0,12">
-                                    <TextBlock Text="执行动作" Style="{StaticResource SectionCaption}"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <RadioButton x:Name="MouseActionRadio" Content="鼠标点击" GroupName="StepAction" Margin="0,0,13,0"
-                                                     Checked="MouseActionRadio_Checked"/>
-                                        <RadioButton x:Name="KeyboardActionRadio" Content="键盘按键" GroupName="StepAction"
-                                                     Checked="KeyboardActionRadio_Checked"/>
-                                    </StackPanel>
-                                </StackPanel>
                                 <StackPanel x:Name="KindPickerPanel" Margin="0,0,0,12">
                                     <TextBlock Text="操作类型" Style="{StaticResource SectionCaption}"/>
                                     <ComboBox x:Name="StepKindCombo" DisplayMemberPath="Name" SelectedValuePath="Value"

@@ -498,31 +498,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SelectedStep = StepList.SelectedItem as MacroStep;
     }
 
-    private void MouseActionRadio_Checked(object sender, RoutedEventArgs e)
-    {
-        if (!_initialized || SelectedStep is null || SelectedStep.Kind is not (StepKind.Click or StepKind.KeyCombo)) return;
-        if (SelectedStep.Kind != StepKind.Click)
-        {
-            CancelKeyCapture();
-            SelectedStep.Kind = StepKind.Click;
-            UpdateStepUI();
-        }
-    }
-
-    private void KeyboardActionRadio_Checked(object sender, RoutedEventArgs e)
-    {
-        if (!_initialized || SelectedStep is null || SelectedStep.Kind is not (StepKind.Click or StepKind.KeyCombo)) return;
-        if (SelectedStep.Kind != StepKind.KeyCombo)
-        {
-            SelectedStep.Kind = StepKind.KeyCombo;
-            UpdateStepUI();
-        }
-    }
-
     private void StepKindCombo_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (!_initialized) return;
-        Dispatcher.BeginInvoke((Action)UpdateStepUI, DispatcherPriority.Background);
+        Dispatcher.BeginInvoke((Action)(() =>
+        {
+            if (_capturingKeyStep != null && _capturingKeyStep.Kind != StepKind.KeyCombo)
+                CancelKeyCapture();
+            UpdateStepUI();
+        }), DispatcherPriority.Background);
     }
 
     private void UpdateStepUI()
@@ -533,13 +517,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StepEditorPanel.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
         if (!has) return;
         var kind = SelectedStep!.Kind;
-        ActionSwitchPanel.Visibility = kind is StepKind.Click or StepKind.KeyCombo ? Visibility.Visible : Visibility.Collapsed;
-        KindPickerPanel.Visibility = kind is StepKind.Click or StepKind.KeyCombo ? Visibility.Collapsed : Visibility.Visible;
-        if (kind is StepKind.Click or StepKind.KeyCombo)
-        {
-            MouseActionRadio.IsChecked = kind == StepKind.Click;
-            KeyboardActionRadio.IsChecked = kind == StepKind.KeyCombo;
-        }
         MouseButtonEditor.Visibility = kind is StepKind.Click or StepKind.MouseDown or StepKind.MouseUp or StepKind.Drag
             ? Visibility.Visible : Visibility.Collapsed;
         CoordinatesEditor.Visibility = kind is StepKind.Click or StepKind.MouseDown or StepKind.MouseUp or StepKind.Drag
