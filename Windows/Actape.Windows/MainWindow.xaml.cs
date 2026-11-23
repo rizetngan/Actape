@@ -89,6 +89,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private int _triggerCapturePrimary;
     private KeyModifiers _triggerCaptureModifiers;
     private int _activeHoldKey;
+    private int _heldKeyboardCode; // Atomic flag read by the playback worker
     private KeyModifiers _activeHoldModifiers;
     private bool _capturingSingleStep;
     private Guid _singleCaptureMacroId;
@@ -326,6 +327,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (target.Mode == TriggerMode.Hold)
             Volatile.Write(ref _holdButtonCode, (int)button);
         _activeHoldKey = 0;
+        Volatile.Write(ref _heldKeyboardCode, 0);
         _runningTrigger = button;
         MacroList.SelectedItem = target;
         StatusText = target.Mode == TriggerMode.Hold ? "按住侧键循环执行，松开立即停止" : $"执行「{target.Name}」";
@@ -414,6 +416,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             _activeHoldKey = 0;
             _activeHoldModifiers = KeyModifiers.None;
+            Volatile.Write(ref _heldKeyboardCode, 0);
             _player.Stop();
         }
     }
@@ -524,11 +527,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     {
                         _activeHoldKey = vk;
                         _activeHoldModifiers = modifiers;
+                        Volatile.Write(ref _heldKeyboardCode, vk);
                     }
                     StatusText = target.Mode == TriggerMode.Hold ? "按住触发键循环执行" : $"执行「{target.Name}」";
                     _ = _player.StartAsync(target, target.Mode == TriggerMode.Hold,
-                        () => _activeHoldKey == vk && _pressedKeys.Contains(vk)
-                              && (ModifiersOf(_pressedKeys) & modifiers) == modifiers);
+                        () => Volatile.Read(ref _heldKeyboardCode) == vk);
                     UpdateRunButtons();
                 }
                 return true;
@@ -905,6 +908,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _pressedKeys.Clear();
             _activeHoldKey = 0;
             _activeHoldModifiers = KeyModifiers.None;
+            Volatile.Write(ref _heldKeyboardCode, 0);
             _suppressedTriggerUps.Clear();
         }
         StatusText = _enabled ? "已启用所有宏" : "已暂停：鼠标侧键恢复原有功能";
