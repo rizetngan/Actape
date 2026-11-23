@@ -8,7 +8,7 @@ if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
     throw 'This installer requires Windows x64.'
 }
 $repo = 'rizetngan/Actape'
-$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers @{ 'User-Agent' = 'Actape-Installer' }
+$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -TimeoutSec 45 -Headers @{ 'User-Agent' = 'Actape-Installer' }
 if ($release.draft -or $release.prerelease) { throw 'Only stable releases are supported.' }
 $name = "Actape-Windows-$($release.tag_name)-win-x64.zip"
 $package = @($release.assets | Where-Object { $_.name -eq $name })
@@ -20,8 +20,9 @@ New-Item -ItemType Directory -Path $temp -Force | Out-Null
 try {
     $zip = Join-Path $temp $name
     $sums = Join-Path $temp 'SHA256SUMS.txt'
-    Invoke-WebRequest -UseBasicParsing -Uri $package[0].browser_download_url -OutFile $zip
-    Invoke-WebRequest -UseBasicParsing -Uri $checksum[0].browser_download_url -OutFile $sums
+    Write-Host "Downloading $name..."
+    Invoke-WebRequest -UseBasicParsing -TimeoutSec 360 -Uri $package[0].browser_download_url -OutFile $zip
+    Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri $checksum[0].browser_download_url -OutFile $sums
     $expected = @(
         Get-Content -LiteralPath $sums | ForEach-Object {
             if ($_ -match '^\s*([0-9a-fA-F]{64})\s+\*?(.+?)\s*$' -and $Matches[2] -eq $name) {
