@@ -16,51 +16,51 @@
 
 <p align="center">
 <img src="docs/windows-preview.png" width="94%" alt="Actape native Windows interface">
-<br><sub>Native Windows interface · Stable v1.0.1</sub>
+<br><sub>Native Windows interface</sub>
 </p>
 
-Actape is a native macro utility for macOS and Windows. Record repetitive mouse and keyboard actions, edit them as steps, bind a macro to a physical mouse side button, and replay it when needed. **One lightweight app for recording, editing, triggering, and playback—without a separate mouse-remapping utility.**
+Actape is a native macro utility for macOS and Windows. Record repetitive mouse and keyboard actions, edit them as steps, assign a mouse side button, single keyboard key, or shortcut chord to trigger playback. **One lightweight app for recording, editing, triggering, and playback—without a separate mouse-remapping utility.**
 
 ## Features
 
 - **Quick recording:** Capture system-wide mouse clicks, drags, scrolling, and keyboard input.
-- **Editable steps:** Adjust coordinates, buttons, click counts, delays, and order.
-- **Side-button triggers:** Bind a macro by pressing a physical mouse side button—no key codes to enter.
-- **Fast playback:** Configure repeat count and speed; Windows supports hold-to-repeat and stop-on-release.
+- **Quick step entry:** Add an action by recording it, entering text, or adding a wait; edit any step afterwards.
+- **Unified triggers:** Bind a macro by pressing a mouse side button, keyboard key, or shortcut combination.
+- **Flexible playback:** Configure each macro for tap-to-trigger or hold-to-repeat; adjust repeat count and speed.
 - **Macro management:** Create, duplicate, delete, auto-save, and import/export JSON.
 - **Global shortcuts:** Use F6 / F7 to start recording and test playback.
 
 ## macOS
 
-**Status:** Physical macOS side-button test passed
+**Status:** macOS build and hands-on testing passed
 
 A native SwiftUI implementation using CoreGraphics to monitor and replay system input events.
 
 - Record mouse clicks, drags, scrolling, and keyboard input.
 - Edit steps and configure repeat count and playback speed.
-- Bind a physical mouse side button directly; press to run and press again to stop.
+- Bind a side button, single keyboard key, or shortcut chord; choose tap or hold-to-repeat.
 - Configurable global F6 / F7 shortcuts.
 - JSON import/export and automatic persistence.
 
-The current macOS version supports tap-to-trigger. **Hold-to-repeat with stop-on-release is not implemented yet.**
+Add individual actions through Record Action / Type Text / Wait. Existing macro files remain compatible.
 
 ## Windows
 
-**Status:** Windows v1.0.1 released
+**Status:** Windows v1.1.0 released
 
 A native WPF implementation using Win32 low-level mouse/keyboard hooks and `SendInput`. It is implemented independently from the macOS app and does not require a separate remapping driver.
 
 - Record mouse clicks, drags, and scrolling; keyboard recording is optional.
 - Edit coordinates, delays, click counts, keys, and text-input steps.
-- Bind standard mouse side buttons XBUTTON1 / XBUTTON2 directly.
+- Bind mouse side buttons XBUTTON1 / XBUTTON2, single keyboard keys, or shortcut chords.
 - Configure each macro for tap-to-trigger or hold-to-repeat, stopping on release.
 - System-tray operation, automatic persistence, and JSON import/export.
 
-Windows v1.0.1 has been released after local build, standalone EXE launch, UI checks, and hands-on testing.
+Windows builds, launches, and user hands-on testing have passed.
 
 ## Download
 
-**Actape v1.0.1 is officially released.** Download installers from [GitHub Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.1).
+**Actape v1.1.0 is officially released.** Download installers from [GitHub Releases](https://github.com/rizetngan/Actape/releases/tag/v1.1.0).
 
 - [macOS build and release workflow](https://github.com/rizetngan/Actape/actions/workflows/build.yml)
 - [Windows build artifacts](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml)
@@ -72,17 +72,17 @@ The official release provides macOS Universal and Windows x64 packages, plus `SH
 
 ### macOS
 
-1. Download the macOS ZIP from [Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.1), unzip it, and move Actape.app to Applications.
+1. Download the macOS ZIP from [Releases](https://github.com/rizetngan/Actape/releases/tag/v1.1.0), unzip it, and move Actape.app to Applications.
 2. On first launch, grant Actape the required input permission in System Settings → Privacy & Security → Device Control and Data Access (or Accessibility on older macOS versions).
 3. Start recording, perform the actions, then stop. Edit the steps and test playback.
-4. Bind a mouse side button in the macro details to trigger it directly.
+4. Bind a mouse side button, single key, or shortcut chord in the macro details.
 
 ### Windows
 
 1. Launch `Actape.exe`.
 2. Create a macro and click Record. Perform the actions after the countdown.
 3. Press F6 or click Finish Recording, edit the steps, and click Test.
-4. Click Bind Side Button, then press physical mouse button 4 or 5.
+4. Click Set Trigger Key, then press a side button, single keyboard key, or shortcut chord.
 5. Choose tap or hold mode. Closing the main window keeps Actape running in the system tray.
 
 ## Development
