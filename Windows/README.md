@@ -27,6 +27,21 @@ Actape for Windows 已作为 v1.1.0 正式版发布，已完成本机编译、�
 
 正式版请从 [GitHub Releases](https://github.com/rizetngan/Actape/releases/tag/v1.1.0) 下载。开发构建日志可在 [Windows workflow](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml) 查看。
 
+## PowerShell / Agent 安装
+
+推荐直接在 **PowerShell** 中安装最新稳定版，无需下载源码或安装 .NET SDK：
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$script = Join-Path $env:TEMP 'install-actape.ps1'
+Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/rizetngan/Actape/main/scripts/install-windows.ps1' -OutFile $script
+& $script
+```
+
+脚本从官方 Release 下载、验证 SHA-256，安装到用户应用目录并保留宏数据。**也可以交给 Agent 安装：** [复制完整的 Agent 安装指令](../README.md#使用-agent-安装)。
+
+安装脚本：[scripts/install-windows.ps1](../scripts/install-windows.ps1)。如只需校验，可使用 `& $script -DownloadOnly`。
+
 ## 构建
 
 要求 Windows 10/11 与 .NET 10 SDK：
