@@ -1,9 +1,14 @@
 import SwiftUI
+import AppKit
 
 struct EventRowView: View {
     @Binding var event: MacroEvent
     var onDelete: () -> Void = {}
     @State private var expanded: Bool = false
+    @State private var capturingKeyCombo = false
+    @State private var keyCaptureMonitor: Any?
+    @State private var pendingKeyCode: UInt16?
+    @State private var pendingModifiers: UInt64 = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -70,29 +75,108 @@ struct EventRowView: View {
     @ViewBuilder
     private var standardEditor: some View {
         let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
-            kindPicker
-            if event.kind.isMouse {
-                xField
-                yField
-                if event.kind == .click || event.kind == .mouseDown || event.kind == .mouseUp || event.kind == .mouseDrag {
-                    buttonPicker
+        VStack(alignment: .leading, spacing: 10) {
+            if event.kind == .click || event.kind == .keyCombo {
+                Picker("执行动作", selection: $event.kind) {
+                    Text("鼠标点击").tag(MacroEventKind.click)
+                    Text("键盘按键").tag(MacroEventKind.keyCombo)
                 }
-                if event.kind == .click || event.kind == .mouseDown || event.kind == .mouseUp {
-                    clickCountField
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 330)
+            } else {
+                kindPicker
+            }
+
+            if event.kind == .keyCombo {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock")
+                    Text("保留原坐标")
+                    Text("X: \(Int(event.x)) · Y: \(Int(event.y))")
+                        .monospacedDigit()
                 }
-            }
-            if event.kind.isKeyboard {
-                keyCodeField
-                modifierToggles
-            }
-            if event.kind == .scroll {
-                scrollDeltaXField
-                scrollDeltaYField
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                keyComboCaptureEditor
+            } else {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
+                    if event.kind.isMouse {
+                        xField
+                        yField
+                        if event.kind == .click || event.kind == .mouseDown || event.kind == .mouseUp || event.kind == .mouseDrag {
+                            buttonPicker
+                        }
+                        if event.kind == .click || event.kind == .mouseDown || event.kind == .mouseUp {
+                            clickCountField
+                        }
+                    }
+                    if event.kind.isKeyboard {
+                        keyCodeField
+                        modifierToggles
+                    }
+                    if event.kind == .scroll {
+                        scrollDeltaXField
+                        scrollDeltaYField
+                    }
+                }
             }
         }
         .padding(.horizontal, 4)
         .padding(.bottom, 6)
+        .onDisappear { stopKeyCapture() }
+    }
+
+    private var keyComboCaptureEditor: some View {
+        HStack(spacing: 12) {
+            Text(KeyCodeNames.label(for: event.keyCode, modifiers: event.modifierFlags))
+                .font(.callout.weight(.semibold))
+                .frame(minWidth: 110, alignment: .leading)
+            Button(capturingKeyCombo ? "取消录入" : "录入按键") {
+                capturingKeyCombo ? stopKeyCapture() : startKeyCapture()
+            }
+            .controlSize(.small)
+            if capturingKeyCombo {
+                Text("按下组合键，松开主键完成 · Esc 取消")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func startKeyCapture() {
+        stopKeyCapture()
+        capturingKeyCombo = true
+        keyCaptureMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { keyEvent in
+            guard capturingKeyCombo else { return keyEvent }
+            if keyEvent.type == .keyDown {
+                if keyEvent.keyCode == 53 {
+                    stopKeyCapture()  // Escape cancels without overwriting the current shortcut.
+                    return nil
+                }
+                if pendingKeyCode == nil {
+                    pendingKeyCode = keyEvent.keyCode
+                    let allowed: NSEvent.ModifierFlags = [.shift, .control, .option, .command, .function]
+                    pendingModifiers = UInt64(keyEvent.modifierFlags.intersection(allowed).rawValue)
+                }
+                return nil
+            }
+            if keyEvent.type == .keyUp, keyEvent.keyCode == pendingKeyCode {
+                event.keyCode = keyEvent.keyCode
+                event.modifierFlags = pendingModifiers
+                stopKeyCapture()
+            }
+            return nil
+        }
+    }
+
+    private func stopKeyCapture() {
+        capturingKeyCombo = false
+        pendingKeyCode = nil
+        pendingModifiers = 0
+        if let monitor = keyCaptureMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyCaptureMonitor = nil
+        }
     }
 
     // MARK: Type Text editor

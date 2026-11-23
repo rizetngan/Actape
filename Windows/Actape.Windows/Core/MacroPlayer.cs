@@ -159,6 +159,28 @@ internal sealed class MacroPlayer
             case StepKind.KeyUp:
                 KeyUp(step.KeyCode);
                 break;
+            case StepKind.KeyCombo:
+            {
+                int[] modifiers = [
+                    .. (step.KeyModifiers.HasFlag(KeyModifiers.Ctrl) ? new[] { 0x11 } : Array.Empty<int>()),
+                    .. (step.KeyModifiers.HasFlag(KeyModifiers.Alt) ? new[] { 0x12 } : Array.Empty<int>()),
+                    .. (step.KeyModifiers.HasFlag(KeyModifiers.Shift) ? new[] { 0x10 } : Array.Empty<int>()),
+                    .. (step.KeyModifiers.HasFlag(KeyModifiers.Win) ? new[] { 0x5B } : Array.Empty<int>())
+                ];
+                foreach (int key in modifiers) { ct.ThrowIfCancellationRequested(); KeyDown(key); }
+                try
+                {
+                    ct.ThrowIfCancellationRequested();
+                    KeyDown(step.KeyCode);
+                    try { await Delay(48, speed, ct); }
+                    finally { KeyUp(step.KeyCode); }
+                }
+                finally
+                {
+                    foreach (int key in modifiers.Reverse()) KeyUp(key);
+                }
+                break;
+            }
             case StepKind.TypeText:
                 NativeInput.TypeText(step.Text, ct);
                 break;

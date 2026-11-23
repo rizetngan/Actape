@@ -44,6 +44,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public Option<StepKind>[] StepKindOptions { get; } =
     [
         new(StepKind.Click, "鼠标点击"),
+        new(StepKind.KeyCombo, "键盘按键 / 组合键"),
         new(StepKind.MouseDown, "鼠标按下"),
         new(StepKind.MouseUp, "鼠标松开"),
         new(StepKind.Drag, "鼠标拖动"),
@@ -75,6 +76,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _capturingSideButton;
     private SideButton _captureReleasePending = SideButton.None;
     private MacroStep? _capturingKeyStep;
+    private readonly HashSet<int> _captureHeldModifiers = [];
+    private readonly HashSet<int> _captureIgnoreKeyUps = [];
+    private int _capturePrimaryKey;
+    private KeyModifiers _captureModifiers;
     private int _suppressKeyUp;
     private int _holdButtonCode;
     private SideButton _runningTrigger = SideButton.None;
@@ -322,18 +327,65 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _suppressKeyUp = 0;
             return true;
         }
-        if (_capturingKeyStep != null && down)
+        if (_captureIgnoreKeyUps.Contains(vk))
         {
-            if (vk == 0x1B) // Esc cancels
-                StatusText = "已取消按键录入";
-            else
+            if (!down) _captureIgnoreKeyUps.Remove(vk);
+            return true;
+        }
+        if (_capturingKeyStep != null)
+        {
+            if (vk == 0x1B)
             {
-                _capturingKeyStep.KeyCode = vk;
-                StatusText = $"已录入按键：0x{vk:X2}";
+                if (down)
+                {
+                    CancelKeyCapture();
+                    StatusText = "已取消按键录入";
+                }
+                _captureIgnoreKeyUps.Add(vk);
+                return true;
             }
-            _capturingKeyStep = null;
-            _suppressKeyUp = vk;
-            CaptureKeyButton.Content = "直接按键录入";
+            KeyModifiers flag = vk switch
+            {
+                0xA2 or 0xA3 or 0x11 => KeyModifiers.Ctrl,
+                0xA4 or 0xA5 or 0x12 => KeyModifiers.Alt,
+                0xA0 or 0xA1 or 0x10 => KeyModifiers.Shift,
+                0x5B or 0x5C => KeyModifiers.Win,
+                _ => KeyModifiers.None
+            };
+            if (flag != KeyModifiers.None)
+            {
+                if (down) _captureHeldModifiers.Add(vk);
+                else _captureHeldModifiers.Remove(vk);
+                return true;
+            }
+            if (down && _capturePrimaryKey == 0)
+            {
+                _capturePrimaryKey = vk;
+                foreach (int key in _captureHeldModifiers)
+                {
+                    _captureModifiers |= key switch
+                    {
+                        0xA2 or 0xA3 or 0x11 => KeyModifiers.Ctrl,
+                        0xA4 or 0xA5 or 0x12 => KeyModifiers.Alt,
+                        0xA0 or 0xA1 or 0x10 => KeyModifiers.Shift,
+                        0x5B or 0x5C => KeyModifiers.Win,
+                        _ => KeyModifiers.None
+                    };
+                }
+            }
+            else if (!down && vk == _capturePrimaryKey)
+            {
+                var step = _capturingKeyStep;
+                var modifiers = _captureModifiers;
+                CancelKeyCapture();
+                if (step != null)
+                {
+                    step.KeyCode = vk;
+                    step.KeyModifiers = modifiers;
+                    step.Kind = StepKind.KeyCombo;
+                    StatusText = $"已录入：{step.KeyDisplay}，原坐标保留";
+                }
+            }
             return true;
         }
         if (_capturingSideButton && down && vk == 0x1B)
@@ -440,8 +492,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         UpdateRunButtons();
     }
 
-    private void StepList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+    private void StepList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_capturingKeyStep != null) CancelKeyCapture();
         SelectedStep = StepList.SelectedItem as MacroStep;
+    }
+
+    private void MouseActionRadio_Checked(object sender, RoutedEventArgs e)
+    {
+        if (!_initialized || SelectedStep is null || SelectedStep.Kind is not (StepKind.Click or StepKind.KeyCombo)) return;
+        if (SelectedStep.Kind != StepKind.Click)
+        {
+            CancelKeyCapture();
+            SelectedStep.Kind = StepKind.Click;
+            UpdateStepUI();
+        }
+    }
+
+    private void KeyboardActionRadio_Checked(object sender, RoutedEventArgs e)
+    {
+        if (!_initialized || SelectedStep is null || SelectedStep.Kind is not (StepKind.Click or StepKind.KeyCombo)) return;
+        if (SelectedStep.Kind != StepKind.KeyCombo)
+        {
+            SelectedStep.Kind = StepKind.KeyCombo;
+            UpdateStepUI();
+        }
+    }
 
     private void StepKindCombo_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -457,6 +533,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StepEditorPanel.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
         if (!has) return;
         var kind = SelectedStep!.Kind;
+        ActionSwitchPanel.Visibility = kind is StepKind.Click or StepKind.KeyCombo ? Visibility.Visible : Visibility.Collapsed;
+        KindPickerPanel.Visibility = kind is StepKind.Click or StepKind.KeyCombo ? Visibility.Collapsed : Visibility.Visible;
+        if (kind is StepKind.Click or StepKind.KeyCombo)
+        {
+            MouseActionRadio.IsChecked = kind == StepKind.Click;
+            KeyboardActionRadio.IsChecked = kind == StepKind.KeyCombo;
+        }
         MouseButtonEditor.Visibility = kind is StepKind.Click or StepKind.MouseDown or StepKind.MouseUp or StepKind.Drag
             ? Visibility.Visible : Visibility.Collapsed;
         CoordinatesEditor.Visibility = kind is StepKind.Click or StepKind.MouseDown or StepKind.MouseUp or StepKind.Drag
@@ -464,6 +547,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DragEditor.Visibility = kind == StepKind.Drag ? Visibility.Visible : Visibility.Collapsed;
         ClickCountEditor.Visibility = kind == StepKind.Click ? Visibility.Visible : Visibility.Collapsed;
         KeyEditor.Visibility = kind is StepKind.KeyDown or StepKind.KeyUp ? Visibility.Visible : Visibility.Collapsed;
+        KeyComboEditor.Visibility = kind == StepKind.KeyCombo ? Visibility.Visible : Visibility.Collapsed;
         TextEditor.Visibility = kind == StepKind.TypeText ? Visibility.Visible : Visibility.Collapsed;
         ScrollEditor.Visibility = kind == StepKind.Scroll ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -512,10 +596,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void CaptureKeyButton_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedStep is null) return;
+        if (SelectedStep?.Kind != StepKind.KeyCombo || _recorder.IsRecording || _player.IsRunning) return;
+        if (_capturingKeyStep != null)
+        {
+            CancelKeyCapture();
+            return;
+        }
         _capturingKeyStep = SelectedStep;
-        CaptureKeyButton.Content = "请按一个按键…";
-        StatusText = "直接按下要录入的键，按 Esc 取消";
+        _captureHeldModifiers.Clear();
+        _capturePrimaryKey = 0;
+        _captureModifiers = KeyModifiers.None;
+        CaptureKeyButton.Content = "取消录入";
+        StatusText = "按下目标按键组合，松开主键后完成；Esc 取消";
+    }
+
+    private void CancelKeyCapture()
+    {
+        _capturingKeyStep = null;
+        _capturePrimaryKey = 0;
+        _captureModifiers = KeyModifiers.None;
+        _captureIgnoreKeyUps.UnionWith(_captureHeldModifiers);
+        _captureHeldModifiers.Clear();
+        if (_initialized) CaptureKeyButton.Content = "录入按键";
     }
 
     private void MoreButton_Click(object sender, RoutedEventArgs e)

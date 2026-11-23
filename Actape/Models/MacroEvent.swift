@@ -31,6 +31,7 @@ enum MacroEventKind: String, Codable, CaseIterable, Hashable {
     case mouseMove
     case keyDown
     case keyUp
+    case keyCombo
     case flagsChanged
     case scroll
     case typeText
@@ -44,6 +45,7 @@ enum MacroEventKind: String, Codable, CaseIterable, Hashable {
         case .mouseMove: return "鼠标移动"
         case .keyDown: return "按键按下"
         case .keyUp: return "按键松开"
+        case .keyCombo: return "键盘按键"
         case .flagsChanged: return "修饰键"
         case .scroll: return "滚动"
         case .typeText: return "输入文本"
@@ -56,7 +58,7 @@ enum MacroEventKind: String, Codable, CaseIterable, Hashable {
         case .mouseDown, .mouseUp: return "cursorarrow.click"
         case .mouseDrag: return "cursorarrow.motionlines"
         case .mouseMove: return "arrow.up.and.down.and.arrow.left.and.right"
-        case .keyDown, .keyUp: return "keyboard"
+        case .keyDown, .keyUp, .keyCombo: return "keyboard"
         case .flagsChanged: return "command"
         case .scroll: return "arrow.up.and.down.circle"
         case .typeText: return "character.cursor.ibeam"
@@ -72,7 +74,7 @@ enum MacroEventKind: String, Codable, CaseIterable, Hashable {
 
     var isKeyboard: Bool {
         switch self {
-        case .keyDown, .keyUp, .flagsChanged: return true
+        case .keyDown, .keyUp, .keyCombo, .flagsChanged: return true
         default: return false
         }
     }
@@ -257,6 +259,8 @@ struct MacroEvent: Identifiable, Codable, Hashable {
             return "按下：\(KeyCodeNames.label(for: keyCode, modifiers: modifierFlags))"
         case .keyUp:
             return "松开：\(KeyCodeNames.label(for: keyCode, modifiers: modifierFlags))"
+        case .keyCombo:
+            return "按键：\(KeyCodeNames.label(for: keyCode, modifiers: modifierFlags)) · 原坐标 (\(Int(x)), \(Int(y)))"
         case .flagsChanged:
             return "修饰键：\(KeyCodeNames.modifierLabel(for: modifierFlags))"
         case .scroll:

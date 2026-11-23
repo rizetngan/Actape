@@ -200,6 +200,11 @@ struct MacroDetailView: View {
                     Label("鼠标点击", systemImage: "cursorarrow.click")
                 }
                 Button {
+                    addKeyComboEvent()
+                } label: {
+                    Label("键盘按键", systemImage: "keyboard")
+                }
+                Button {
                     addTypeTextEvent()
                 } label: {
                     Label("输入文本 / 序列", systemImage: "character.cursor.ibeam")
@@ -234,6 +239,14 @@ struct MacroDetailView: View {
         e.delayMs = 200
         e.x = 100
         e.y = 100
+        macro.events.append(e)
+    }
+
+    private func addKeyComboEvent() {
+        var e = MacroEvent()
+        e.kind = .keyCombo
+        e.delayMs = 200
+        e.keyCode = 36 // Return; can be changed using direct key capture.
         macro.events.append(e)
     }
 

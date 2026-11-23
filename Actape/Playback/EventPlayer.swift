@@ -181,6 +181,21 @@ final class EventPlayer {
                 evt.post(tap: .cghidEventTap)
             }
 
+        case .keyCombo:
+            // Single, balanced keypress with modifier flags.  Coordinates remain
+            // stored for later switching back to a mouse click, but are not clicked.
+            if let down = CGEvent(keyboardEventSource: source,
+                                  virtualKey: me.keyCode, keyDown: true),
+               let up = CGEvent(keyboardEventSource: source,
+                                virtualKey: me.keyCode, keyDown: false) {
+                let flags = CGEventFlags(rawValue: me.modifierFlags)
+                down.flags = flags
+                up.flags = flags
+                down.post(tap: .cghidEventTap)
+                usleep(40_000)
+                up.post(tap: .cghidEventTap)
+            }
+
         case .flagsChanged:
             if let evt = CGEvent(keyboardEventSource: source,
                                   virtualKey: me.keyCode,
