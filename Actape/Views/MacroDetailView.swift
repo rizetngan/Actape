@@ -53,17 +53,17 @@ struct MacroDetailView: View {
                 speedControl
                 Spacer(minLength: 0)
             }
-            mouseTriggerControl
+            triggerControl
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
 
-    private var mouseTriggerControl: some View {
+    private var triggerControl: some View {
         HStack(spacing: 10) {
-            Image(systemName: "computermouse")
+            Image(systemName: "keyboard")
                 .foregroundStyle(.secondary)
-            Text("触发侧键")
+            Text("触发键")
                 .font(.subheadline)
             Spacer()
             Button {
@@ -74,21 +74,27 @@ struct MacroDetailView: View {
                 }
             } label: {
                 Text(store.capturingTriggerFor == macro.id
-                     ? "请按鼠标侧键…（取消）"
-                     : macro.triggerButton.map { "侧键 \($0)" } ?? "绑定侧键…")
-                    .frame(minWidth: 150)
+                     ? "请按触发键…（取消）"
+                     : macro.triggerDisplay)
+                    .frame(minWidth: 140)
             }
-            .disabled(store.isRecording || store.isPlaying)
-            .help("点击后按一下需要绑定的鼠标侧键。")
-            if macro.triggerButton != nil {
+            .disabled(store.isRecording || store.isPlaying || store.capturingActionFor != nil)
+            .help("直接按鼠标侧键、键盘单键或快捷键组合")
+            if macro.triggerButton != nil || macro.triggerKeyCode != nil {
                 Button {
                     store.clearTrigger(for: macro.id)
                 } label: {
                     Image(systemName: "xmark.circle")
                 }
                 .buttonStyle(.borderless)
-                .help("清除侧键绑定")
+                .help("清除触发键绑定")
             }
+            Toggle("按住循环", isOn: Binding(
+                get: { macro.triggerHold == true },
+                set: { macro.triggerHold = $0 }
+            ))
+            .toggleStyle(.checkbox)
+            .disabled(store.isRecording || store.isPlaying)
         }
     }
 
@@ -195,35 +201,40 @@ struct MacroDetailView: View {
         HStack(spacing: 8) {
             Menu {
                 Button {
-                    addBlankEvent()
+                    store.beginActionCapture(for: macro.id)
                 } label: {
-                    Label("鼠标点击", systemImage: "cursorarrow.click")
-                }
-                Button {
-                    addKeyComboEvent()
-                } label: {
-                    Label("键盘按键", systemImage: "keyboard")
+                    Label("录入操作", systemImage: "record.circle")
                 }
                 Button {
                     addTypeTextEvent()
                 } label: {
-                    Label("输入文本 / 序列", systemImage: "character.cursor.ibeam")
+                    Label("输入文字", systemImage: "character.cursor.ibeam")
+                }
+                Button {
+                    addWaitEvent()
+                } label: {
+                    Label("等待", systemImage: "clock")
                 }
             } label: {
                 Label("添加步骤", systemImage: "plus")
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
+            .disabled(store.capturingActionFor != nil || store.isRecording || store.isPlaying)
+
+            if store.capturingActionFor == macro.id {
+                Button("取消录入") { store.cancelActionCapture() }
+                    .controlSize(.small)
+            }
 
             Button {
                 clearAll()
             } label: {
                 Label("清空步骤", systemImage: "xmark.octagon")
             }
-            .disabled(macro.events.isEmpty)
+            .disabled(macro.events.isEmpty || store.capturingActionFor != nil)
 
             Spacer()
-
             Text("拖动调整顺序")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -233,21 +244,11 @@ struct MacroDetailView: View {
 
     // MARK: Actions
 
-    private func addBlankEvent() {
-        var e = MacroEvent()
-        e.kind = .click
-        e.delayMs = 200
-        e.x = 100
-        e.y = 100
-        macro.events.append(e)
-    }
-
-    private func addKeyComboEvent() {
-        var e = MacroEvent()
-        e.kind = .keyCombo
-        e.delayMs = 200
-        e.keyCode = 36 // Return; can be changed using direct key capture.
-        macro.events.append(e)
+    private func addWaitEvent() {
+        var event = MacroEvent()
+        event.kind = .wait
+        event.delayMs = 300
+        macro.events.append(event)
     }
 
     private func addTypeTextEvent() {

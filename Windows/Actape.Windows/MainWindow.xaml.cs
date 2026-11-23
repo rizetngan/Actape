@@ -73,7 +73,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private WinForms.NotifyIcon? _tray;
     private bool _exitRequested;
     private bool _enabled = true;
-    private bool _capturingSideButton;
+    private bool _capturingTrigger;
     private SideButton _captureReleasePending = SideButton.None;
     private MacroStep? _capturingKeyStep;
     private readonly HashSet<int> _captureHeldModifiers = [];
@@ -83,6 +83,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private int _suppressKeyUp;
     private int _holdButtonCode;
     private SideButton _runningTrigger = SideButton.None;
+    private readonly HashSet<int> _pressedKeys = [];
+    private readonly HashSet<int> _suppressedTriggerUps = [];
+    private readonly HashSet<int> _triggerCaptureHeld = [];
+    private int _triggerCapturePrimary;
+    private KeyModifiers _triggerCaptureModifiers;
+    private int _activeHoldKey;
+    private KeyModifiers _activeHoldModifiers;
+    private bool _capturingSingleStep;
+    private Guid _singleCaptureMacroId;
+    private readonly Dictionary<MouseButton, (int X, int Y, long Started)> _singleMouseDown = [];
+    private readonly HashSet<int> _singleHeldModifiers = [];
+    private int _singlePrimary;
+    private KeyModifiers _singleModifiers;
     private CancellationTokenSource? _countdown;
     private Guid _recordingMacroId;
     private bool _initialized;
@@ -91,7 +104,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         InitializeComponent();
         DataContext = this;
-        _hooks.PhysicalMouse += e => _recorder.OnMouse(e);
+        _hooks.PhysicalMouse += e =>
+        {
+            _recorder.OnMouse(e);
+            HandleSingleMouse(e);
+        };
         _hooks.PhysicalKeyboard += e => _recorder.OnKeyboard(e);
         _hooks.HandleSideButton = HandleSideButton;
         _hooks.HandleShortcut = HandleKeyboardShortcut;
@@ -211,16 +228,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RecordButton.IsEnabled = has && !_player.IsRunning;
         PlayButton.IsEnabled = has && m!.Steps.Count > 0 && !_recorder.IsRecording;
         BindButton.IsEnabled = has && !_recorder.IsRecording && !_player.IsRunning;
-        ClearBindButton.IsEnabled = has && m!.Trigger != SideButton.None;
-        AddStepButton.IsEnabled = has && !_recorder.IsRecording;
+        ClearBindButton.IsEnabled = has && m!.HasTrigger;
+        AddStepButton.IsEnabled = has && !_recorder.IsRecording && !_capturingSingleStep;
         StepList.IsEnabled = has && !_recorder.IsRecording;
-        BoundButtonLabel.Text = m?.Trigger switch
-        {
-            SideButton.XButton1 => "侧键 4",
-            SideButton.XButton2 => "侧键 5",
-            _ => "未绑定"
-        };
-        BindButton.Content = _capturingSideButton ? "请按侧键…" : "绑定侧键…";
+        BoundButtonLabel.Text = m?.TriggerName ?? "未绑定";
+        BindButton.Content = _capturingTrigger ? "请按触发键…（取消）" : "设置触发键…";
         TriggerModePicker.SelectedIndex = m?.Mode == TriggerMode.Hold ? 1 : 0;
         RepeatSettings.Visibility = m?.Mode == TriggerMode.Hold ? Visibility.Collapsed : Visibility.Visible;
         HoldHint.Visibility = m?.Mode == TriggerMode.Hold ? Visibility.Visible : Visibility.Collapsed;
@@ -248,8 +260,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void BindButton_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedMacro is null || _recorder.IsRecording || _player.IsRunning) return;
-        _capturingSideButton = !_capturingSideButton;
-        StatusText = _capturingSideButton ? "请按需要绑定的真实鼠标侧键（Esc 取消）" : "已取消绑定";
+        _capturingTrigger = !_capturingTrigger;
+        _triggerCaptureHeld.Clear();
+        _triggerCapturePrimary = 0;
+        _triggerCaptureModifiers = KeyModifiers.None;
+        StatusText = _capturingTrigger ? "按下侧键、单键或组合键；Esc 取消" : "已取消绑定";
         UpdateMacroUI();
     }
 
@@ -257,8 +272,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (SelectedMacro is null) return;
         SelectedMacro.Trigger = SideButton.None;
-        _capturingSideButton = false;
-        StatusText = "已清除侧键绑定";
+        SelectedMacro.TriggerKeyCode = 0;
+        SelectedMacro.TriggerKeyModifiers = KeyModifiers.None;
+        _capturingTrigger = false;
+        StatusText = "已清除触发键";
         UpdateMacroUI();
     }
 
@@ -271,24 +288,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _captureReleasePending = SideButton.None;
             return true;
         }
-        if (_capturingSideButton)
+        if (_capturingTrigger)
         {
             if (down && SelectedMacro != null)
             {
-                foreach (var m in Macros.Where(x => x.Trigger == button && x.Id != SelectedMacro.Id))
-                    m.Trigger = SideButton.None;
-                SelectedMacro.Trigger = button;
+                var id = SelectedMacro.Id;
                 _captureReleasePending = button;
-                _capturingSideButton = false;
-                StatusText = $"已将{(button == SideButton.XButton1 ? "侧键 4" : "侧键 5")}绑定至「{SelectedMacro.Name}」";
-                UpdateMacroUI();
+                _capturingTrigger = false;
+                Dispatcher.BeginInvoke(() => AssignSideTrigger(id, button));
             }
             return true;
         }
 
         // Keep button-up state balanced even if a binding was cleared while held.
         if (!down) _physicalDown.Remove(button);
-        if (_recorder.IsRecording || !_enabled) return false;
+        if (_recorder.IsRecording || _capturingSingleStep || !_enabled) return false;
         var target = Macros.FirstOrDefault(m => m.Trigger == button && m.Enabled && m.Steps.Count > 0);
         if (target == null) return false;
         if (!down)
@@ -311,6 +325,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (target.Mode == TriggerMode.Hold)
             Volatile.Write(ref _holdButtonCode, (int)button);
+        _activeHoldKey = 0;
         _runningTrigger = button;
         MacroList.SelectedItem = target;
         StatusText = target.Mode == TriggerMode.Hold ? "按住侧键循环执行，松开立即停止" : $"执行「{target.Name}」";
@@ -320,13 +335,92 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private static KeyModifiers ModifierForKey(int vk) => vk switch
+    {
+        0x11 or 0xA2 or 0xA3 => KeyModifiers.Ctrl,
+        0x12 or 0xA4 or 0xA5 => KeyModifiers.Alt,
+        0x10 or 0xA0 or 0xA1 => KeyModifiers.Shift,
+        0x5B or 0x5C => KeyModifiers.Win,
+        _ => KeyModifiers.None
+    };
+
+    private static KeyModifiers ModifiersOf(IEnumerable<int> keys)
+    {
+        KeyModifiers flags = KeyModifiers.None;
+        foreach (int key in keys) flags |= ModifierForKey(key);
+        return flags;
+    }
+
+    private void AssignSideTrigger(Guid id, SideButton button)
+    {
+        var target = Macros.FirstOrDefault(m => m.Id == id);
+        if (target == null) return;
+        var conflict = Macros.FirstOrDefault(m => m.Id != id && m.Trigger == button);
+        if (conflict != null && System.Windows.MessageBox.Show(this,
+                $"此侧键已用于「{conflict.Name}」，是否转移给「{target.Name}」？",
+                "触发键冲突", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            StatusText = "已保留原绑定"; UpdateMacroUI(); return;
+        }
+        if (conflict != null) conflict.Trigger = SideButton.None;
+        target.TriggerKeyCode = 0;
+        target.TriggerKeyModifiers = KeyModifiers.None;
+        target.Trigger = button;
+        StatusText = $"已绑定 {target.TriggerName}";
+        UpdateMacroUI();
+    }
+
+    private void AssignKeyboardTrigger(Guid id, int vk, KeyModifiers modifiers)
+    {
+        var target = Macros.FirstOrDefault(m => m.Id == id);
+        if (target == null) return;
+        if (vk is 0x1B or 0x75 or 0x76)
+        {
+            StatusText = "Esc / F6 / F7 为保留按键，请选择其他触发键";
+            UpdateMacroUI(); return;
+        }
+        var conflict = Macros.FirstOrDefault(m => m.Id != id &&
+            m.TriggerKeyCode == vk && m.TriggerKeyModifiers == modifiers);
+        if (conflict != null && System.Windows.MessageBox.Show(this,
+                $"该快捷键已用于「{conflict.Name}」，是否转移给「{target.Name}」？",
+                "触发键冲突", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            StatusText = "已保留原绑定"; UpdateMacroUI(); return;
+        }
+        if (modifiers == KeyModifiers.None && vk >= 0x30 && vk <= 0x5A &&
+            System.Windows.MessageBox.Show(this,
+                "普通单键设为全局触发后，正常打字也会触发宏。仍要绑定吗？",
+                "单键触发提示", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            StatusText = "已取消单键绑定"; UpdateMacroUI(); return;
+        }
+        if (conflict != null)
+        {
+            conflict.TriggerKeyCode = 0;
+            conflict.TriggerKeyModifiers = KeyModifiers.None;
+        }
+        target.Trigger = SideButton.None;
+        target.TriggerKeyModifiers = modifiers;
+        target.TriggerKeyCode = vk;
+        StatusText = $"已绑定 {target.TriggerName}";
+        UpdateMacroUI();
+    }
+
+    private void StopKeyboardHoldIfReleased()
+    {
+        if (_activeHoldKey == 0) return;
+        if (!_pressedKeys.Contains(_activeHoldKey) ||
+            (ModifiersOf(_pressedKeys) & _activeHoldModifiers) != _activeHoldModifiers)
+        {
+            _activeHoldKey = 0;
+            _activeHoldModifiers = KeyModifiers.None;
+            _player.Stop();
+        }
+    }
+
     private bool HandleKeyboardShortcut(int vk, bool down)
     {
-        if (!down && _suppressKeyUp == vk)
-        {
-            _suppressKeyUp = 0;
-            return true;
-        }
+        if (!down && _suppressKeyUp == vk) { _suppressKeyUp = 0; return true; }
         if (_captureIgnoreKeyUps.Contains(vk))
         {
             if (!down) _captureIgnoreKeyUps.Remove(vk);
@@ -336,23 +430,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             if (vk == 0x1B)
             {
-                if (down)
-                {
-                    CancelKeyCapture();
-                    StatusText = "已取消按键录入";
-                }
+                if (down) { CancelKeyCapture(); StatusText = "已取消按键录入"; }
                 _captureIgnoreKeyUps.Add(vk);
                 return true;
             }
-            KeyModifiers flag = vk switch
-            {
-                0xA2 or 0xA3 or 0x11 => KeyModifiers.Ctrl,
-                0xA4 or 0xA5 or 0x12 => KeyModifiers.Alt,
-                0xA0 or 0xA1 or 0x10 => KeyModifiers.Shift,
-                0x5B or 0x5C => KeyModifiers.Win,
-                _ => KeyModifiers.None
-            };
-            if (flag != KeyModifiers.None)
+            if (ModifierForKey(vk) != KeyModifiers.None)
             {
                 if (down) _captureHeldModifiers.Add(vk);
                 else _captureHeldModifiers.Remove(vk);
@@ -361,17 +443,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (down && _capturePrimaryKey == 0)
             {
                 _capturePrimaryKey = vk;
-                foreach (int key in _captureHeldModifiers)
-                {
-                    _captureModifiers |= key switch
-                    {
-                        0xA2 or 0xA3 or 0x11 => KeyModifiers.Ctrl,
-                        0xA4 or 0xA5 or 0x12 => KeyModifiers.Alt,
-                        0xA0 or 0xA1 or 0x10 => KeyModifiers.Shift,
-                        0x5B or 0x5C => KeyModifiers.Win,
-                        _ => KeyModifiers.None
-                    };
-                }
+                _captureModifiers = ModifiersOf(_captureHeldModifiers);
             }
             else if (!down && vk == _capturePrimaryKey)
             {
@@ -388,13 +460,79 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
             return true;
         }
-        if (_capturingSideButton && down && vk == 0x1B)
+
+        if (_capturingTrigger)
         {
-            _capturingSideButton = false;
-            _suppressKeyUp = vk;
-            StatusText = "已取消侧键绑定";
-            UpdateMacroUI();
+            if (vk == 0x1B)
+            {
+                if (down)
+                {
+                    _capturingTrigger = false;
+                    _captureIgnoreKeyUps.UnionWith(_triggerCaptureHeld);
+                    _triggerCaptureHeld.Clear();
+                    _captureIgnoreKeyUps.Add(vk);
+                    _triggerCapturePrimary = 0;
+                    StatusText = "已取消绑定";
+                    UpdateMacroUI();
+                }
+                return true;
+            }
+            if (ModifierForKey(vk) != KeyModifiers.None)
+            {
+                if (down) _triggerCaptureHeld.Add(vk);
+                else _triggerCaptureHeld.Remove(vk);
+                return true;
+            }
+            if (down && _triggerCapturePrimary == 0)
+            {
+                _triggerCapturePrimary = vk;
+                _triggerCaptureModifiers = ModifiersOf(_triggerCaptureHeld);
+            }
+            else if (!down && vk == _triggerCapturePrimary)
+            {
+                var id = SelectedMacro?.Id;
+                var modifiers = _triggerCaptureModifiers;
+                _captureIgnoreKeyUps.UnionWith(_triggerCaptureHeld);
+                _triggerCaptureHeld.Clear();
+                _triggerCapturePrimary = 0;
+                _capturingTrigger = false;
+                if (id.HasValue)
+                    Dispatcher.BeginInvoke(() => AssignKeyboardTrigger(id.Value, vk, modifiers));
+            }
             return true;
+        }
+        if (_capturingSingleStep) return HandleSingleKeyboard(vk, down);
+
+        bool firstDown = down && _pressedKeys.Add(vk);
+        if (!down) _pressedKeys.Remove(vk);
+        StopKeyboardHoldIfReleased();
+
+        if (_enabled && !_recorder.IsRecording)
+        {
+            if (!down && _suppressedTriggerUps.Remove(vk)) return true;
+            var modifiers = ModifiersOf(_pressedKeys);
+            var target = Macros.FirstOrDefault(m => m.TriggerKeyCode == vk
+                && m.TriggerKeyModifiers == modifiers && m.Enabled && m.Steps.Count > 0);
+            if (target != null && down)
+            {
+                _suppressedTriggerUps.Add(vk);
+                if (firstDown)
+                {
+                    if (_player.IsRunning) { _player.Stop(); return true; }
+                    MacroList.SelectedItem = target;
+                    if (target.Mode == TriggerMode.Hold)
+                    {
+                        _activeHoldKey = vk;
+                        _activeHoldModifiers = modifiers;
+                    }
+                    StatusText = target.Mode == TriggerMode.Hold ? "按住触发键循环执行" : $"执行「{target.Name}」";
+                    _ = _player.StartAsync(target, target.Mode == TriggerMode.Hold,
+                        () => _activeHoldKey == vk && _pressedKeys.Contains(vk)
+                              && (ModifiersOf(_pressedKeys) & modifiers) == modifiers);
+                    UpdateRunButtons();
+                }
+                return true;
+            }
         }
         if (vk != 0x75 && vk != 0x76) return false; // F6 / F7
         if (down)
@@ -406,7 +544,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
         }
         else _shortcutDown.Remove(vk);
-        return true; // Never record global shortcut keys into the macro
+        return true;
     }
 
     private void RecordButton_Click(object sender, RoutedEventArgs e) => _ = ToggleRecordAsync();
@@ -422,11 +560,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
         if (_recorder.IsRecording) { FinishRecording(); return; }
-        if (SelectedMacro is null || _player.IsRunning) return;
+        if (SelectedMacro is null || _player.IsRunning || _capturingSingleStep) return;
         if (SelectedMacro.Steps.Count > 0 &&
             System.Windows.MessageBox.Show(this, "重新录制会替换当前宏的所有步骤，是否继续？",
                 "确认重新录制", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-        _capturingSideButton = false;
+        _capturingTrigger = false;
         var macroId = SelectedMacro.Id;
         var cts = new CancellationTokenSource();
         _countdown = cts;
@@ -479,7 +617,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             UpdateRunButtons();
             return;
         }
-        if (SelectedMacro is null || SelectedMacro.Steps.Count == 0 || _recorder.IsRecording) return;
+        if (SelectedMacro is null || SelectedMacro.Steps.Count == 0 || _recorder.IsRecording || _capturingSingleStep) return;
         // Toolbar is a safe one-pass preview even if the physical trigger is in hold mode.
         var test = new Macro
         {
@@ -532,22 +670,144 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void AddStep_Click(object sender, RoutedEventArgs e)
     {
         var menu = new System.Windows.Controls.ContextMenu { PlacementTarget = AddStepButton };
-        foreach (var option in StepKindOptions)
-        {
-            var item = new System.Windows.Controls.MenuItem { Header = option.Name, Tag = option.Value };
-            item.Click += (_, _) =>
-            {
-                if (SelectedMacro is null) return;
-                var step = new MacroStep { Kind = (StepKind)item.Tag, DelayMs = 150 };
-                if (step.Kind == StepKind.TypeText) step.Text = "你好";
-                if (step.Kind == StepKind.Wait) step.DelayMs = 300;
-                SelectedMacro.Steps.Add(step);
-                StepList.SelectedItem = step;
-                StepList.ScrollIntoView(step);
-            };
-            menu.Items.Add(item);
-        }
+        var capture = new System.Windows.Controls.MenuItem { Header = "录入操作" };
+        capture.Click += (_, _) => BeginSingleStepCapture();
+        var text = new System.Windows.Controls.MenuItem { Header = "输入文字" };
+        text.Click += (_, _) => AddManualStep(StepKind.TypeText);
+        var wait = new System.Windows.Controls.MenuItem { Header = "等待" };
+        wait.Click += (_, _) => AddManualStep(StepKind.Wait);
+        menu.Items.Add(capture);
+        menu.Items.Add(text);
+        menu.Items.Add(wait);
         menu.IsOpen = true;
+    }
+
+    private void AddManualStep(StepKind kind)
+    {
+        if (SelectedMacro == null || _capturingSingleStep) return;
+        var step = new MacroStep { Kind = kind, DelayMs = kind == StepKind.Wait ? 300 : 150 };
+        SelectedMacro.Steps.Add(step);
+        StepList.SelectedItem = step;
+        StepList.ScrollIntoView(step);
+    }
+
+    private void BeginSingleStepCapture()
+    {
+        if (SelectedMacro == null || _capturingTrigger || _recorder.IsRecording || _player.IsRunning) return;
+        CancelKeyCapture();
+        _capturingSingleStep = true;
+        _singleCaptureMacroId = SelectedMacro.Id;
+        _singleMouseDown.Clear();
+        _singleHeldModifiers.Clear();
+        _singlePrimary = 0;
+        MacroList.IsEnabled = false;
+        StatusText = "请在目标窗口执行一次鼠标或键盘操作，Esc 取消";
+        AddStepButton.Content = "正在录入…";
+        AddStepButton.IsEnabled = false;
+    }
+
+    private void FinishSingleStep(MacroStep step, MacroStep? release = null)
+    {
+        if (!_capturingSingleStep) return;
+        var id = _singleCaptureMacroId;
+        CancelSingleStepCapture();
+        var macro = Macros.FirstOrDefault(m => m.Id == id);
+        if (macro == null) return;
+        macro.Steps.Add(step);
+        if (release != null) macro.Steps.Add(release);
+        StepList.SelectedItem = step;
+        StepList.ScrollIntoView(step);
+        StatusText = $"已录入：{step.Summary}";
+    }
+
+    private void CancelSingleStepCapture()
+    {
+        _capturingSingleStep = false;
+        _singleCaptureMacroId = Guid.Empty;
+        _singleMouseDown.Clear();
+        _singleHeldModifiers.Clear();
+        _singlePrimary = 0;
+        if (_initialized)
+        {
+            MacroList.IsEnabled = true;
+            AddStepButton.Content = "＋  添加步骤";
+            UpdateMacroUI();
+        }
+    }
+
+    private bool HandleSingleKeyboard(int vk, bool down)
+    {
+        if (vk == 0x1B)
+        {
+            if (down)
+            {
+                CancelSingleStepCapture();
+                StatusText = "已取消录入";
+                _captureIgnoreKeyUps.Add(vk);
+            }
+            return true;
+        }
+        if (ModifierForKey(vk) != KeyModifiers.None)
+        {
+            if (down) _singleHeldModifiers.Add(vk);
+            else _singleHeldModifiers.Remove(vk);
+            return true;
+        }
+        if (down && _singlePrimary == 0)
+        {
+            _singlePrimary = vk;
+            _singleModifiers = ModifiersOf(_singleHeldModifiers);
+        }
+        else if (!down && vk == _singlePrimary)
+        {
+            FinishSingleStep(new MacroStep {
+                Kind = StepKind.KeyCombo, KeyCode = vk,
+                KeyModifiers = _singleModifiers, DelayMs = 150
+            });
+        }
+        return true; // Capture without writing the shortcut into the active text editor.
+    }
+
+    private void HandleSingleMouse(MouseHookEvent ev)
+    {
+        if (!_capturingSingleStep || NativeInput.ForegroundIsThisApp()) return;
+        MouseButton? button = ev.Message switch
+        {
+            NativeInput.WM_LBUTTONDOWN or NativeInput.WM_LBUTTONUP => MouseButton.Left,
+            NativeInput.WM_RBUTTONDOWN or NativeInput.WM_RBUTTONUP => MouseButton.Right,
+            NativeInput.WM_MBUTTONDOWN or NativeInput.WM_MBUTTONUP => MouseButton.Middle,
+            _ => null
+        };
+        if (button.HasValue)
+        {
+            bool down = ev.Message is NativeInput.WM_LBUTTONDOWN or NativeInput.WM_RBUTTONDOWN or NativeInput.WM_MBUTTONDOWN;
+            if (down)
+            {
+                _singleMouseDown[button.Value] = (ev.X, ev.Y, System.Diagnostics.Stopwatch.GetTimestamp());
+            }
+            else if (_singleMouseDown.Remove(button.Value, out var first))
+            {
+                int duration = (int)System.Diagnostics.Stopwatch.GetElapsedTime(first.Started).TotalMilliseconds;
+                bool drag = Math.Abs(first.X - ev.X) + Math.Abs(first.Y - ev.Y) > 8;
+                if (drag)
+                    FinishSingleStep(new MacroStep { Kind = StepKind.Drag, Button = button.Value,
+                        X = first.X, Y = first.Y, EndX = ev.X, EndY = ev.Y, DelayMs = 150 });
+                else if (duration > 350)
+                    FinishSingleStep(new MacroStep { Kind = StepKind.MouseDown, Button = button.Value,
+                        X = first.X, Y = first.Y, DelayMs = 150 },
+                        new MacroStep { Kind = StepKind.MouseUp, Button = button.Value,
+                            X = ev.X, Y = ev.Y, DelayMs = duration });
+                else
+                    FinishSingleStep(new MacroStep { Kind = StepKind.Click, Button = button.Value,
+                        X = first.X, Y = first.Y, DelayMs = 150 });
+            }
+        }
+        else if (ev.Message is NativeInput.WM_MOUSEWHEEL or NativeInput.WM_MOUSEHWHEEL)
+        {
+            FinishSingleStep(new MacroStep { Kind = StepKind.Scroll,
+                ScrollDelta = (short)(ev.MouseData >> 16),
+                HorizontalScroll = ev.Message == NativeInput.WM_MOUSEHWHEEL, DelayMs = 150 });
+        }
     }
 
     private void MoveStepUp_Click(object sender, RoutedEventArgs e) => MoveStep(-1);
@@ -605,7 +865,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         duplicate.Click += (_, _) =>
         {
             var copy = JsonSerializer.Deserialize<Macro>(MacroRepository.SerializeMacro(SelectedMacro), MacroRepository.JsonOptions)!;
-            copy.Id = Guid.NewGuid(); copy.Trigger = SideButton.None; copy.Name += " 副本";
+            copy.Id = Guid.NewGuid();
+            copy.Trigger = SideButton.None;
+            copy.TriggerKeyCode = 0;
+            copy.TriggerKeyModifiers = KeyModifiers.None;
+            copy.Name += " 副本";
             foreach (var step in copy.Steps) step.Id = Guid.NewGuid();
             Macros.Add(copy); MacroList.SelectedItem = copy;
         };
@@ -632,6 +896,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Volatile.Write(ref _holdButtonCode, 0);
             _player.Stop();
             _physicalDown.Clear();
+            _pressedKeys.Clear();
+            _activeHoldKey = 0;
+            _activeHoldModifiers = KeyModifiers.None;
+            _suppressedTriggerUps.Clear();
         }
         StatusText = _enabled ? "已启用所有宏" : "已暂停：鼠标侧键恢复原有功能";
     }
@@ -647,11 +915,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 item.Id = Guid.NewGuid();
                 item.Trigger = SideButton.None;
+                item.TriggerKeyCode = 0;
+                item.TriggerKeyModifiers = KeyModifiers.None;
                 foreach (var step in item.Steps) step.Id = Guid.NewGuid();
                 Macros.Add(item);
             }
             if (fresh.Count > 0) MacroList.SelectedItem = fresh[0];
-            StatusText = $"已导入 {fresh.Count} 个宏（请重新绑定侧键）";
+            StatusText = $"已导入 {fresh.Count} 个宏（请重新设置触发键）";
         }
         catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
     }

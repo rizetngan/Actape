@@ -95,6 +95,8 @@ public sealed class Macro : Notifiable
 {
     private string _name = "新建宏";
     private SideButton _trigger;
+    private int _triggerKeyCode;
+    private KeyModifiers _triggerKeyModifiers;
     private TriggerMode _mode = TriggerMode.Tap;
     private int _repeatCount = 1;
     private bool _infinite;
@@ -106,7 +108,25 @@ public sealed class Macro : Notifiable
 
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get => _name; set => Set(ref _name, value ?? ""); }
-    public SideButton Trigger { get => _trigger; set { if (Set(ref _trigger, value)) Notify(nameof(TriggerDisplay)); } }
+    // Keep the original side-button JSON property for backwards compatibility.
+    public SideButton Trigger { get => _trigger; set { if (Set(ref _trigger, value)) { Notify(nameof(TriggerDisplay)); Notify(nameof(TriggerName)); } } }
+    public int TriggerKeyCode { get => _triggerKeyCode; set { if (Set(ref _triggerKeyCode, value)) { Notify(nameof(TriggerDisplay)); Notify(nameof(TriggerName)); } } }
+    public KeyModifiers TriggerKeyModifiers { get => _triggerKeyModifiers; set { if (Set(ref _triggerKeyModifiers, value)) { Notify(nameof(TriggerDisplay)); Notify(nameof(TriggerName)); } } }
+    [JsonIgnore] public bool HasTrigger => Trigger != SideButton.None || TriggerKeyCode != 0;
+    [JsonIgnore] public string TriggerName
+    {
+        get
+        {
+            if (TriggerKeyCode != 0)
+                return new MacroStep { KeyCode = TriggerKeyCode, KeyModifiers = TriggerKeyModifiers }.KeyDisplay;
+            return Trigger switch
+            {
+                SideButton.XButton1 => "?? 4",
+                SideButton.XButton2 => "?? 5",
+                _ => "???"
+            };
+        }
+    }
     public TriggerMode Mode { get => _mode; set { if (Set(ref _mode, value)) Notify(nameof(TriggerDisplay)); } }
     public int RepeatCount { get => _repeatCount; set => Set(ref _repeatCount, Math.Clamp(value, 1, 100000)); }
     public bool InfiniteLoop { get => _infinite; set => Set(ref _infinite, value); }
@@ -127,10 +147,7 @@ public sealed class Macro : Notifiable
     private void OnStepsChanged(object? s, NotifyCollectionChangedEventArgs e) => Notify(nameof(StepCount));
 
     [JsonIgnore] public int StepCount => Steps.Count;
-    [JsonIgnore] public string TriggerDisplay => $"{(Trigger switch
-    {
-        SideButton.XButton1 => "鼠标侧键 4", SideButton.XButton2 => "鼠标侧键 5", _ => "未绑定"
-    })} · {(Mode == TriggerMode.Hold ? "按住触发" : "单击触发")}";
+    [JsonIgnore] public string TriggerDisplay => $"{TriggerName} ? {(Mode == TriggerMode.Hold ? "????" : "????")}";
 }
 
 public sealed record Option<T>(T Value, string Name);

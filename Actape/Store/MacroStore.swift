@@ -13,6 +13,12 @@ final class MacroStore: ObservableObject {
     @Published var statusMessage: String = "就绪"
     @Published var playbackProgress: (rep: Int, step: Int)?
     @Published var capturingTriggerFor: UUID?
+    @Published var capturingActionFor: UUID?
+    private var captureMouseDown: MacroEvent?
+    private var captureDrag: MacroEvent?
+    private var captureKeyDown: MacroEvent?
+    private var activeHoldMacroID: UUID?
+    private var blockedTriggerKeys: Set<UInt16> = []
 
     private let mouseButtons = MouseTriggerMonitor()
     private let recorder = EventRecorder()
@@ -40,14 +46,22 @@ final class MacroStore: ObservableObject {
             selectedMacroId = macros.first?.id
         }
 
-        mouseButtons.resolveMacro = { [weak self] button in
-            self?.macros.first(where: { $0.triggerButton == button })?.id
+        mouseButtons.resolveMacro = { [weak self] input in
+            self?.macros.first(where: { macro in
+                switch input {
+                case .mouse(let button):
+                    return macro.triggerButton == button
+                case .key(let key, let modifiers):
+                    return macro.triggerKeyCode == key &&
+                           (macro.triggerModifierFlags ?? 0) == modifiers
+                }
+            })?.id
         }
-        mouseButtons.onCapture = { [weak self] macroID, button in
-            self?.assignTrigger(button, to: macroID)
+        mouseButtons.onCapture = { [weak self] id, input in
+            Task { @MainActor [weak self] in self?.assignTrigger(input, to: id) }
         }
-        mouseButtons.onTrigger = { [weak self] macroID in
-            self?.triggerMacro(macroID)
+        mouseButtons.onTrigger = { [weak self] id, down in
+            self?.triggerMacro(id, pressed: down)
         }
     }
 
@@ -130,6 +144,8 @@ final class MacroStore: ObservableObject {
                 copy.id = UUID()
                 // Imported macros must be rebound explicitly to avoid stealing a side button.
                 copy.triggerButton = nil
+                copy.triggerKeyCode = nil
+                copy.triggerModifierFlags = nil
                 copy.events = m.events.map { e in var ev = e; ev.id = UUID(); return ev }
                 return copy
             }
@@ -183,7 +199,9 @@ final class MacroStore: ObservableObject {
         var copy = original
         copy.id = UUID()
         copy.name = "\(original.name) 副本"
-        copy.triggerButton = nil // Do not create two macros for the same physical button.
+        copy.triggerButton = nil
+        copy.triggerKeyCode = nil
+        copy.triggerModifierFlags = nil
         copy.events = original.events.map { evt in
             var e = evt
             e.id = UUID()
@@ -233,33 +251,33 @@ final class MacroStore: ObservableObject {
         scheduleSave()
     }
 
-    // MARK: - Direct mouse-button triggers
+    // MARK: - Unified mouse / keyboard macro triggers
 
     func ensureTriggerMonitor() {
         guard AccessibilityHelper.isTrusted(prompt: false) else { return }
         if !mouseButtons.start() {
-            statusMessage = "无法监听鼠标侧键，请检查设备控制和数据访问权限。"
+            statusMessage = "无法启动全局输入监听，请检查设备控制和数据访问权限。"
         }
     }
 
     func beginTriggerCapture(for macroID: UUID) {
         guard macros.contains(where: { $0.id == macroID }) else { return }
-        guard !isRecording, !isPlaying else {
-            statusMessage = "请先结束录制或执行，再绑定侧键。"
+        guard !isRecording, !isPlaying, capturingActionFor == nil else {
+            statusMessage = "请先结束录制、步骤录入或执行。"
             return
         }
         guard AccessibilityHelper.isTrusted(prompt: false) else {
             _ = AccessibilityHelper.isTrusted(prompt: true)
-            statusMessage = "请先授权设备控制和数据访问权限，再重新绑定侧键。"
+            statusMessage = "请先授予输入控制权限。"
             return
         }
         guard mouseButtons.start() else {
-            statusMessage = "无法检测鼠标侧键输入。"
+            statusMessage = "无法检测鼠标或键盘输入。"
             return
         }
         capturingTriggerFor = macroID
         mouseButtons.captureNextButton(for: macroID)
-        statusMessage = "请按一下要绑定的鼠标侧键。"
+        statusMessage = "请按鼠标侧键、单键或快捷键组合，Esc 取消。"
     }
 
     func cancelTriggerCapture() {
@@ -270,32 +288,177 @@ final class MacroStore: ObservableObject {
     func clearTrigger(for macroID: UUID) {
         guard let index = macros.firstIndex(where: { $0.id == macroID }) else { return }
         macros[index].triggerButton = nil
+        macros[index].triggerKeyCode = nil
+        macros[index].triggerModifierFlags = nil
         cancelTriggerCapture()
         scheduleSave()
-        statusMessage = "已清除侧键绑定。"
+        statusMessage = "已清除触发键绑定。"
     }
 
-    private func assignTrigger(_ button: Int, to macroID: UUID) {
+    private func confirmBinding(_ text: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "触发键确认"
+        alert.informativeText = text
+        alert.addButton(withTitle: "继续")
+        alert.addButton(withTitle: "取消")
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    private func assignTrigger(_ input: TriggerInput, to macroID: UUID) {
         guard let index = macros.firstIndex(where: { $0.id == macroID }) else { return }
-        // One physical button controls one macro. Rebinding moves the assignment.
-        for i in macros.indices where macros[i].triggerButton == button {
-            macros[i].triggerButton = nil
-        }
-        macros[index].triggerButton = button
         cancelTriggerCapture()
-        scheduleSave()
-        statusMessage = "已将侧键 \(button) 绑定至「\(macros[index].name)」。"
-    }
-
-    private func triggerMacro(_ macroID: UUID) {
-        guard !isRecording, capturingTriggerFor == nil else { return }
-        if isPlaying {
-            stopPlayback()
+        if case .key(let code, _) = input {
+            if code == 53 || blockedTriggerKeys.contains(code) {
+                statusMessage = "该键已用于取消或全局录制快捷键，请换一个触发键。"
+                return
+            }
+        }
+        let conflict = macros.firstIndex(where: { i in
+            guard i.id != macroID else { return false }
+            switch input {
+            case .mouse(let button): return i.triggerButton == button
+            case .key(let code, let flags):
+                return i.triggerKeyCode == code && (i.triggerModifierFlags ?? 0) == flags
+            }
+        })
+        if let conflict, !confirmBinding(
+            "该触发键已用于「\(macros[conflict].name)」，是否转移给「\(macros[index].name)」？"
+        ) {
+            statusMessage = "已保留原绑定。"
             return
         }
-        guard macros.contains(where: { $0.id == macroID }) else { return }
+        if case .key(let code, let flags) = input, flags == 0 {
+            let label = KeyCodeNames.label(for: code, modifiers: 0)
+            if label.count == 1 && !confirmBinding(
+                "普通单键设为全局触发后，正常输入该字符也会启动宏。仍要绑定吗？"
+            ) {
+                statusMessage = "已取消单键绑定。"
+                return
+            }
+        }
+        if let conflict {
+            macros[conflict].triggerButton = nil
+            macros[conflict].triggerKeyCode = nil
+            macros[conflict].triggerModifierFlags = nil
+        }
+        switch input {
+        case .mouse(let button):
+            macros[index].triggerButton = button
+            macros[index].triggerKeyCode = nil
+            macros[index].triggerModifierFlags = nil
+        case .key(let code, let flags):
+            macros[index].triggerButton = nil
+            macros[index].triggerKeyCode = code
+            macros[index].triggerModifierFlags = flags
+        }
+        scheduleSave()
+        statusMessage = "已绑定 \(macros[index].triggerDisplay) 至「\(macros[index].name)」。"
+    }
+
+    private func triggerMacro(_ macroID: UUID, pressed: Bool) {
+        guard !isRecording, capturingTriggerFor == nil, capturingActionFor == nil else { return }
+        if !pressed {
+            if activeHoldMacroID == macroID {
+                activeHoldMacroID = nil
+                stopPlayback()
+            }
+            return
+        }
+        if isPlaying {
+            stopPlayback()
+            activeHoldMacroID = nil
+            return
+        }
+        guard let macro = macros.first(where: { $0.id == macroID }),
+              !macro.events.isEmpty else { return }
         selectedMacroId = macroID
-        playSelected()
+        if macro.triggerHold == true {
+            activeHoldMacroID = macroID
+            var repeated = macro
+            repeated.repeatCount = 0
+            startPlayback(repeated)
+        } else {
+            activeHoldMacroID = nil
+            startPlayback(macro)
+        }
+    }
+
+    // MARK: - Single operation capture
+
+    func beginActionCapture(for macroID: UUID) {
+        guard macros.contains(where: { $0.id == macroID }),
+              !isRecording, !isPlaying, capturingTriggerFor == nil,
+              capturingActionFor == nil else { return }
+        guard AccessibilityHelper.isTrusted(prompt: false) else {
+            _ = AccessibilityHelper.isTrusted(prompt: true)
+            statusMessage = "录入操作需要系统输入权限。"
+            return
+        }
+        captureMouseDown = nil
+        captureDrag = nil
+        captureKeyDown = nil
+        capturingActionFor = macroID
+        mouseButtons.isSuspended = true
+        let started = recorder.start { [weak self] event in
+            self?.handleCapturedAction(event)
+        }
+        if !started {
+            capturingActionFor = nil
+            mouseButtons.isSuspended = false
+            statusMessage = "无法开始录入操作。"
+        } else {
+            statusMessage = "请执行一次鼠标或键盘操作；Esc 取消。"
+        }
+    }
+
+    func cancelActionCapture() {
+        guard capturingActionFor != nil else { return }
+        recorder.stop()
+        capturingActionFor = nil
+        captureMouseDown = nil
+        captureDrag = nil
+        captureKeyDown = nil
+        mouseButtons.isSuspended = false
+    }
+
+    private func finishCapturedAction(_ events: [MacroEvent]) {
+        guard let id = capturingActionFor else { return }
+        cancelActionCapture()
+        guard let index = macros.firstIndex(where: { $0.id == id }), !events.isEmpty else { return }
+        macros[index].events.append(contentsOf: events)
+        scheduleSave()
+        statusMessage = "已录入 \(events.count) 个步骤。"
+    }
+
+    private func handleCapturedAction(_ event: MacroEvent) {
+        guard capturingActionFor != nil else { return }
+        switch event.kind {
+        case .click, .scroll:
+            finishCapturedAction([event])
+        case .mouseDown:
+            captureMouseDown = event
+        case .mouseDrag:
+            captureDrag = event
+        case .mouseUp:
+            if let down = captureMouseDown {
+                if let drag = captureDrag {
+                    finishCapturedAction([down, drag, event])
+                } else {
+                    finishCapturedAction([down, event])
+                }
+            }
+        case .keyDown:
+            if event.keyCode == 53 { cancelActionCapture(); statusMessage = "已取消录入。"; return }
+            if captureKeyDown == nil { captureKeyDown = event }
+        case .keyUp:
+            if let down = captureKeyDown, down.keyCode == event.keyCode {
+                var combo = down
+                combo.kind = .keyCombo
+                combo.modifierFlags = down.modifierFlags
+                finishCapturedAction([combo])
+            }
+        default: break
+        }
     }
 
     // MARK: - Recording
@@ -303,10 +466,11 @@ final class MacroStore: ObservableObject {
     /// Keep the recorder from capturing the global toggle shortcuts.
     func setBlockedKeyCodes(_ codes: Set<UInt16>) {
         recorder.blockedKeyCodes = codes
+        blockedTriggerKeys = codes
     }
 
     func startRecording(intoNewMacro: Bool = true) {
-        guard !isRecording, !isPlaying else { return }
+        guard !isRecording, !isPlaying, capturingActionFor == nil else { return }
 
         if !AccessibilityHelper.isTrusted(prompt: false) {
             statusMessage = "需要设备控制和数据访问权限，请点击顶部提示授权。"
@@ -357,7 +521,7 @@ final class MacroStore: ObservableObject {
     // MARK: - Playback
 
     func playSelected() {
-        guard !isRecording else { return }
+        guard !isRecording, capturingActionFor == nil else { return }
         guard let macro = selectedMacro, !macro.events.isEmpty else {
             statusMessage = "没有可执行的步骤。"
             return
@@ -368,7 +532,10 @@ final class MacroStore: ObservableObject {
             return
         }
         if isPlaying { player.cancel(); return }
+        startPlayback(macro)
+    }
 
+    private func startPlayback(_ macro: Macro) {
         isPlaying = true
         playbackProgress = (1, 0)
         statusMessage = "正在执行「\(macro.name)」…"
@@ -380,6 +547,7 @@ final class MacroStore: ObservableObject {
                     onFinish: { [weak self] cancelled in
                         guard let self = self else { return }
                         self.isPlaying = false
+                        self.activeHoldMacroID = nil
                         self.playbackProgress = nil
                         self.statusMessage = cancelled ? "已停止执行。" : "执行完成。"
                     })
@@ -387,6 +555,7 @@ final class MacroStore: ObservableObject {
 
     func stopPlayback() {
         guard isPlaying else { return }
+        activeHoldMacroID = nil
         player.cancel()
         isPlaying = false
         playbackProgress = nil

@@ -155,10 +155,10 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="鼠标侧键" Style="{StaticResource SectionCaption}"/>
+                            <TextBlock Text="触发键" Style="{StaticResource SectionCaption}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock x:Name="BoundButtonLabel" Text="未绑定" FontSize="14" FontWeight="Medium" Foreground="#2B3F5B" VerticalAlignment="Center"/>
-                                <Button x:Name="BindButton" Content="绑定侧键…" Click="BindButton_Click"
+                                <Button x:Name="BindButton" Content="设置触发键…" Click="BindButton_Click"
                                         Style="{StaticResource QuietButton}" Margin="13,0,0,0" Padding="13,7"/>
                                 <Button x:Name="ClearBindButton" Content="清除" Click="ClearBindButton_Click"
                                         Style="{StaticResource QuietButton}" Margin="7,0,0,0" Padding="11,7"/>
@@ -197,7 +197,7 @@
                             </StackPanel>
                         </StackPanel>
                     </Grid>
-                    <TextBlock x:Name="HoldHint" Text="按住侧键后自动循环整个宏，松开立即停止。"
+                    <TextBlock x:Name="HoldHint" Text="按住触发键循环执行，松开立即停止。"
                                FontSize="12" Foreground="#687D9A" Margin="0,11,0,0" Visibility="Collapsed"/>
                 </StackPanel>
             </Border>
