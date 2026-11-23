@@ -2,7 +2,7 @@ name: Build Windows Actape
 
 on:
   push:
-    branches: [main, feature/windows-native]
+    branches: [main, feature/windows-native, feature/preserve-coordinates-key-input]
     paths:
       - 'Windows/**'
       - '.github/workflows/windows-build.yml'
