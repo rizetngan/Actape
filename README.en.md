@@ -6,7 +6,7 @@
 
 **A lightweight, ready-when-you-need-it mouse and keyboard macro tool.**
 
-[![macOS CI](https://github.com/rizetngan/Actape/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/rizetngan/Actape/actions/workflows/build.yml) [![Windows CI](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml/badge.svg?branch=main)](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/status-preview-orange)
+[![macOS CI](https://github.com/rizetngan/Actape/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/rizetngan/Actape/actions/workflows/build.yml) [![Windows CI](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml/badge.svg?branch=main)](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml) ![License](https://img.shields.io/badge/License-MIT-green) ![Release](https://img.shields.io/github/v/release/rizetngan/Actape?label=release)
 
 [简体中文](README.md) · English
 
@@ -16,7 +16,7 @@
 
 <p align="center">
 <img src="docs/windows-preview.png" width="94%" alt="Actape native Windows interface">
-<br><sub>Native Windows interface · Development preview</sub>
+<br><sub>Native Windows interface · Stable v1.0.0</sub>
 </p>
 
 Actape is a native macro utility for macOS and Windows. Record repetitive mouse and keyboard actions, edit them as steps, bind a macro to a physical mouse side button, and replay it when needed. **One lightweight app for recording, editing, triggering, and playback—without a separate mouse-remapping utility.**
@@ -46,7 +46,7 @@ The current macOS version supports tap-to-trigger. **Hold-to-repeat with stop-on
 
 ## Windows
 
-**Status:** Windows development preview
+**Status:** Windows v1.0.0 released
 
 A native WPF implementation using Win32 low-level mouse/keyboard hooks and `SendInput`. It is implemented independently from the macOS app and does not require a separate remapping driver.
 
@@ -56,23 +56,23 @@ A native WPF implementation using Win32 low-level mouse/keyboard hooks and `Send
 - Configure each macro for tap-to-trigger or hold-to-repeat, stopping on release.
 - System-tray operation, automatic persistence, and JSON import/export.
 
-The Windows app has passed a local build, standalone EXE launch, and UI/basic-flow checks. **Physical mouse validation of hold/repeat and stop-on-release is still pending**, so this is not a stable release.
+Windows v1.0.0 has been released after local build, standalone EXE launch, UI checks, and hands-on testing.
 
 ## Download
 
-Actape is currently in cross-platform development preview. Stable installers have not been published yet.
+**Actape v1.0.0 is officially released.** Download installers from [GitHub Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.0).
 
 - [macOS build and release workflow](https://github.com/rizetngan/Actape/actions/workflows/build.yml)
 - [Windows build artifacts](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml)
 - [All releases](https://github.com/rizetngan/Actape/releases)
 
-Once the Windows CI workflow succeeds, download the preview ZIP from the Artifacts section of the corresponding GitHub Actions run. Stable releases will include installation instructions and checksums.
+The official release provides macOS Universal and Windows x64 packages, plus `SHA256SUMS.txt` to verify their integrity.
 
 ## Usage
 
 ### macOS
 
-1. Open `Actape.xcodeproj` in Xcode and run the app.
+1. Download the macOS ZIP from [Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.0), unzip it, and move Actape.app to Applications.
 2. On first launch, grant Actape the required input permission in System Settings → Privacy & Security → Device Control and Data Access (or Accessibility on older macOS versions).
 3. Start recording, perform the actions, then stop. Edit the steps and test playback.
 4. Bind a mouse side button in the macro details to trigger it directly.
@@ -108,7 +108,7 @@ dotnet publish Windows/Actape.Windows/Actape.Windows.csproj -c Release -r win-x6
   --self-contained true -p:PublishSingleFile=true
 ```
 
-GitHub Actions builds a universal macOS app and a Windows x64 preview package.
+GitHub Actions builds and publishes the macOS Universal and Windows x64 release packages.
 
 ## Data and compatibility
 

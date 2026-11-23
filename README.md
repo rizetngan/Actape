@@ -6,7 +6,7 @@
 
 **随录随用的轻量化鼠标与键盘宏工具**
 
-[![macOS CI](https://github.com/rizetngan/Actape/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/rizetngan/Actape/actions/workflows/build.yml) [![Windows CI](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml/badge.svg?branch=main)](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/status-preview-orange)
+[![macOS CI](https://github.com/rizetngan/Actape/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/rizetngan/Actape/actions/workflows/build.yml) [![Windows CI](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml/badge.svg?branch=main)](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml) ![License](https://img.shields.io/badge/License-MIT-green) ![Release](https://img.shields.io/github/v/release/rizetngan/Actape?label=release)
 
 简体中文 · [English](README.en.md)
 
@@ -16,7 +16,7 @@
 
 <p align="center">
 <img src="docs/windows-preview.png" width="94%" alt="Actape Windows 原生界面">
-<br><sub>Windows 原生界面 · 开发预览版</sub>
+<br><sub>Windows 原生界面 · 正式版 v1.0.0</sub>
 </p>
 
 Actape 是一款面向 macOS 与 Windows 的原生宏工具。把重复的鼠标和键盘操作录下来，整理成可编辑步骤，再绑定到鼠标侧键随时执行。**一个轻量 App 完成录制、编辑、触发和回放，不需要额外安装鼠标映射软件。**
@@ -46,7 +46,7 @@ Actape 是一款面向 macOS 与 Windows 的原生宏工具。把重复的鼠标
 
 ## Windows
 
-**状态：** Windows 开发预览版
+**状态：** Windows 正式版 v1.0.0
 
 原生 WPF 实现，使用 Win32 低级鼠标/键盘钩子与 `SendInput`，与 macOS 版本独立实现，不依赖额外驱动映射程序。
 
@@ -56,23 +56,23 @@ Actape 是一款面向 macOS 与 Windows 的原生宏工具。把重复的鼠标
 - 每个宏独立选择单击触发，或按住循环、松开停止。
 - 系统托盘常驻、自动保存、JSON 导入导出。
 
-Windows 版已完成本机编译、独立 EXE 启动和界面/基础流程检查。**真实鼠标侧键的长按循环、松开停止仍待实体设备验收**，目前不作为正式稳定版发布。
+Windows 版已完成本机编译、独立 EXE 启动、界面检查及用户实机测试，现作为 v1.0.0 正式发布。
 
 ## 下载安装
 
-目前处于跨平台开发预览阶段，尚未发布稳定安装包。
+**Actape v1.0.0 已正式发布。** 下载安装包请前往 [GitHub Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.0)。
 
 - [macOS 构建与发布记录](https://github.com/rizetngan/Actape/actions/workflows/build.yml)
 - [Windows 构建产物](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml)
 - [全部 Releases](https://github.com/rizetngan/Actape/releases)
 
-Windows CI 通过后，可从对应 GitHub Actions 运行记录的 Artifacts 下载预览包。正式版本发布后会在 Releases 提供安装说明与校验信息。
+正式版提供 macOS Universal 与 Windows x64 安装包。下载后可使用 Release 中的 `SHA256SUMS.txt` 校验文件完整性。
 
 ## 使用方法
 
 ### macOS
 
-1. 使用 Xcode 打开 `Actape.xcodeproj` 并运行。
+1. 从 [Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.0) 下载 macOS ZIP，解压后将 Actape.app 放入「应用程序」文件夹。
 2. 首次启动后，在「系统设置 → 隐私与安全性」中为 Actape 授予「设备控制和数据访问」或旧版系统中的「辅助功能」权限。
 3. 点击录制，完成操作后停止录制；编辑步骤并测试执行。
 4. 在宏详情中绑定鼠标侧键，之后即可直接触发宏。
@@ -108,7 +108,7 @@ dotnet publish Windows/Actape.Windows/Actape.Windows.csproj -c Release -r win-x6
   --self-contained true -p:PublishSingleFile=true
 ```
 
-GitHub Actions 分别负责 macOS universal build 和 Windows x64 预览包构建。
+GitHub Actions 分别负责 macOS Universal 和 Windows x64 正式版本构建与发布。
 
 ## 数据与兼容
 
