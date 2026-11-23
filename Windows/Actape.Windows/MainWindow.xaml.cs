@@ -229,7 +229,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         PlayButton.IsEnabled = has && m!.Steps.Count > 0 && !_recorder.IsRecording;
         BindButton.IsEnabled = has && !_recorder.IsRecording && !_player.IsRunning;
         ClearBindButton.IsEnabled = has && m!.HasTrigger;
-        AddStepButton.IsEnabled = has && !_recorder.IsRecording && !_capturingSingleStep;
+        AddStepButton.IsEnabled = has && !_recorder.IsRecording;
         StepList.IsEnabled = has && !_recorder.IsRecording;
         BoundButtonLabel.Text = m?.TriggerName ?? "未绑定";
         BindButton.Content = _capturingTrigger ? "请按触发键…（取消）" : "设置触发键…";
@@ -669,6 +669,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AddStep_Click(object sender, RoutedEventArgs e)
     {
+        if (_capturingSingleStep)
+        {
+            CancelSingleStepCapture();
+            StatusText = "已取消录入";
+            return;
+        }
         var menu = new System.Windows.Controls.ContextMenu { PlacementTarget = AddStepButton };
         var capture = new System.Windows.Controls.MenuItem { Header = "录入操作" };
         capture.Click += (_, _) => BeginSingleStepCapture();
@@ -702,8 +708,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _singlePrimary = 0;
         MacroList.IsEnabled = false;
         StatusText = "请在目标窗口执行一次鼠标或键盘操作，Esc 取消";
-        AddStepButton.Content = "正在录入…";
-        AddStepButton.IsEnabled = false;
+        AddStepButton.Content = "取消录入";
+        AddStepButton.IsEnabled = true;
     }
 
     private void FinishSingleStep(MacroStep step, MacroStep? release = null)

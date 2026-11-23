@@ -432,6 +432,9 @@ final class MacroStore: ObservableObject {
 
     private func handleCapturedAction(_ event: MacroEvent) {
         guard capturingActionFor != nil else { return }
+        // Do not record clicks on Actape's own Cancel button or editor.
+        // Keyboard keys can still be captured while Actape is active.
+        if NSApp.isActive && (event.kind.isMouse || event.kind == .scroll) { return }
         switch event.kind {
         case .click, .scroll:
             finishCapturedAction([event])

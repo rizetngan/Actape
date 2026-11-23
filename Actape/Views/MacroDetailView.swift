@@ -48,8 +48,10 @@ struct MacroDetailView: View {
 
             // Playback controls
             HStack(alignment: .center, spacing: 20) {
-                repeatControl
-                Divider().frame(height: 34)
+                if macro.triggerHold != true {
+                    repeatControl
+                    Divider().frame(height: 34)
+                }
                 speedControl
                 Spacer(minLength: 0)
             }
