@@ -68,6 +68,33 @@ Windows 版已完成编译、独立 EXE 启动、界面检查及用户实机验�
 
 正式版提供 macOS Universal 与 Windows x64 安装包。下载后可使用 Release 中的 `SHA256SUMS.txt` 校验文件完整性。
 
+## 命令行安装
+
+直接复制下方对应系统的命令。脚本会获取**最新稳定 Release**、校验 SHA-256，并保留已有宏数据，无需安装 Git 或开发工具。
+
+### macOS · 终端
+
+```bash
+curl --http1.1 -fL --connect-timeout 12 --max-time 45 \
+  https://raw.githubusercontent.com/rizetngan/Actape/main/scripts/install-macos.sh \
+  -o /tmp/actape-install.sh && bash /tmp/actape-install.sh
+```
+
+应用优先安装到 `/Applications`，没有写入权限时使用 `~/Applications`。如果已有系统级安装但无法直接升级，脚本会停止并提示手动处理；首次启动的输入控制权限仍需在 macOS 中授予。
+
+### Windows · PowerShell
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$script = Join-Path $env:TEMP 'install-actape.ps1'
+Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/rizetngan/Actape/main/scripts/install-windows.ps1' -OutFile $script
+& $script
+```
+
+默认安装到 `%LOCALAPPDATA%\Programs\Actape`，并启动 `Actape.exe`；宏数据保留在原来的 `%APPDATA%\Actape` 目录。已有程序在运行时会提示先退出，不会直接终止它。
+
+安装脚本源码：[macOS](scripts/install-macos.sh) · [Windows](scripts/install-windows.ps1)。仅想检查最新安装包及校验结果、不实际安装时，可在命令末尾添加 `--download-only`（macOS）或 `-DownloadOnly`（Windows）。
+
 ## 使用 Agent 安装
 
 将以下整段指令复制给能够操作本机的 Agent（例如 ChatGPT Work、Codex 或 Claude Code），即可让其按当前系统完成安装：
