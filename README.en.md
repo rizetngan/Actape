@@ -68,6 +68,48 @@ Windows builds, launches, and user hands-on testing have passed.
 
 The official release provides macOS Universal and Windows x64 packages, plus `SHA256SUMS.txt` to verify their integrity.
 
+## Command-line installation
+
+These commands download the **latest stable GitHub Release**, verify its SHA-256 checksum, and preserve existing macros. No build tools are required.
+
+### macOS · Terminal
+
+```bash
+curl --http1.1 -fL --connect-timeout 12 --max-time 45 \
+  https://raw.githubusercontent.com/rizetngan/Actape/main/scripts/install-macos.sh \
+  -o /tmp/actape-install.sh && bash /tmp/actape-install.sh
+```
+
+Installs to `/Applications` where writable, otherwise `~/Applications`. macOS may still require input or Accessibility permission approval.
+
+### Windows · PowerShell
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$script = Join-Path $env:TEMP 'install-actape.ps1'
+Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/rizetngan/Actape/main/scripts/install-windows.ps1' -OutFile $script
+& $script
+```
+
+Installs to `%LOCALAPPDATA%\Programs\Actape` and preserves macros in `%APPDATA%\Actape`. Quit any running Actape instance before upgrading.
+
+Source scripts: [macOS](scripts/install-macos.sh) · [Windows](scripts/install-windows.ps1). For verification without installing, use `--download-only` on macOS or `-DownloadOnly` on Windows.
+
+## Install with an AI Agent
+
+Copy this prompt into an Agent that can operate your computer:
+
+```text
+Install the latest stable version of Actape on this computer:
+https://github.com/rizetngan/Actape
+
+1. Detect the operating system and CPU architecture. Use only this repository's official GitHub Releases (macOS universal ZIP or Windows x64 ZIP). Do not use third-party mirrors or build from source.
+2. Verify the package against the SHA256SUMS.txt file from the same release. Stop if the checksum does not match.
+3. Check for an existing installation and preserve all saved macros and settings. Install Actape.app to Applications on macOS, or Actape.exe and its bundled files to a user-owned directory on Windows.
+4. Launch Actape and verify it opens. Let me approve any macOS input/Accessibility permissions and ask before replacing an installed app or requesting administrator access; never bypass system security.
+5. Report the installed version, location, checksum verification, launch result, and remaining manual steps.
+```
+
 ## Usage
 
 ### macOS
