@@ -9,7 +9,8 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 repo="rizetngan/Actape"
-latest="$(curl -fLsS --retry 2 -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest")"
+echo "Checking the latest stable GitHub release..."
+latest="$(curl --http1.1 -fLsS --retry 1 --connect-timeout 12 --max-time 45 -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest")"
 tag="${latest##*/}"
 if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Could not resolve a stable release tag: $tag" >&2
@@ -20,8 +21,9 @@ name="Actape-macOS-${tag}-universal.zip"
 base="https://github.com/$repo/releases/download/$tag"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-curl -fLsS --retry 2 "$base/$name" -o "$tmp/$name"
-curl -fLsS --retry 2 "$base/SHA256SUMS.txt" -o "$tmp/SHA256SUMS.txt"
+echo "Downloading $name..."
+curl --http1.1 -fLsS --retry 2 --connect-timeout 12 --max-time 360 "$base/$name" -o "$tmp/$name"
+curl --http1.1 -fLsS --retry 1 --connect-timeout 12 --max-time 60 "$base/SHA256SUMS.txt" -o "$tmp/SHA256SUMS.txt"
 
 expected="$(awk -v name="$name" '$2 == name || $2 == "*" name {print $1}' "$tmp/SHA256SUMS.txt")"
 if [[ ! "$expected" =~ ^[0-9a-fA-F]{64}$ ]]; then
