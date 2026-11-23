@@ -104,9 +104,9 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
             gh release edit "$TAG" --title "Actape $TAG" \
-              --notes-file docs/RELEASE_NOTES_v1.0.0.md --latest
+              --notes-file "docs/RELEASE_NOTES_${TAG}.md" --latest
           else
             gh release create "$TAG" dist/* \
               --verify-tag --title "Actape $TAG" \
-              --notes-file docs/RELEASE_NOTES_v1.0.0.md --latest
+              --notes-file "docs/RELEASE_NOTES_${TAG}.md" --latest
           fi

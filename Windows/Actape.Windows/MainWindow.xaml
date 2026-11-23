@@ -1,7 +1,7 @@
 <Window x:Class="Actape.Windows.MainWindow" x:Name="Root"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Actape · 鼠标宏" Icon="Resources/Actape.ico" Width="1110" Height="740"
+        Title="Actape" Icon="Resources/Actape.ico" Width="1110" Height="740"
         MinWidth="930" MinHeight="590"
         WindowStartupLocation="CenterScreen"
         FontFamily="Microsoft YaHei UI"
@@ -82,7 +82,7 @@
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Actape" FontSize="19" FontWeight="Bold" Foreground="#263650"/>
-                            <TextBlock Text="鼠标宏" FontSize="11" Foreground="#8896AA"/>
+                            <TextBlock Text="鼠标与键盘" FontSize="11" Foreground="#8896AA"/>
                         </StackPanel>
                     </StackPanel>
                     <Button Content="＋  新建宏" Style="{StaticResource PrimaryButton}" Click="NewMacro_Click"/>
@@ -90,7 +90,7 @@
                 <StackPanel DockPanel.Dock="Bottom" Margin="20,10,20,19">
                     <Border BorderBrush="#DDE5EF" BorderThickness="0,1,0,0" Margin="0,0,0,14"/>
                     <CheckBox x:Name="EnableCheck" IsChecked="True" Checked="EnableCheck_Changed" Unchecked="EnableCheck_Changed"
-                              Content="启用鼠标宏" FontSize="13" Foreground="#354862" VerticalAlignment="Center"/>
+                              Content="启用宏" FontSize="13" Foreground="#354862" VerticalAlignment="Center"/>
                     <TextBlock Text="关闭窗口后仍在托盘中运行" Foreground="#94A1B2" FontSize="11" Margin="0,7,0,13"/>
                     <StackPanel Orientation="Horizontal">
                         <Button Content="导入" Style="{StaticResource QuietButton}" Margin="0,0,7,0" Click="Import_Click"/>

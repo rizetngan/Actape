@@ -1,4 +1,4 @@
-# Actape for Windows · v1.0.0
+# Actape for Windows · v1.0.1
 
 Actape 的原生 Windows 实现。使用一个 App 完成鼠标与键盘操作录制、步骤编辑、侧键绑定和宏回放。
 
@@ -23,9 +23,9 @@ Windows 版本独立实现，不复用 macOS 的 AppKit / CoreGraphics 代码。
 
 ## 下载与状态
 
-Actape for Windows 已作为 v1.0.0 正式版发布，已完成本机编译、独立 EXE 启动、基本界面交互与用户实机测试。
+Actape for Windows 已作为 v1.0.1 正式版发布，已完成本机编译、独立 EXE 启动、基本界面交互与用户实机测试。
 
-正式版请从 [GitHub Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.0) 下载。开发构建日志可在 [Windows workflow](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml) 查看。
+正式版请从 [GitHub Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.1) 下载。开发构建日志可在 [Windows workflow](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml) 查看。
 
 ## 构建
 

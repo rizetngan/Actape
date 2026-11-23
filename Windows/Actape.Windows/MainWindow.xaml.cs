@@ -554,7 +554,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _player.Stop();
             _physicalDown.Clear();
         }
-        StatusText = _enabled ? "已启用所有鼠标宏" : "已暂停：鼠标侧键恢复原有功能";
+        StatusText = _enabled ? "已启用所有宏" : "已暂停：鼠标侧键恢复原有功能";
     }
 
     private void Import_Click(object sender, RoutedEventArgs e)
@@ -598,12 +598,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _tray = new WinForms.NotifyIcon
         {
             Visible = true,
-            Text = "Actape 鼠标宏",
+            Text = "Actape",
             Icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath!) ?? System.Drawing.SystemIcons.Application
         };
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add("打开 Actape", null, (_, _) => Dispatcher.Invoke(ShowWindow));
-        menu.Items.Add("启用 / 暂停鼠标宏", null, (_, _) =>
+        menu.Items.Add("启用 / 暂停宏", null, (_, _) =>
             Dispatcher.Invoke(() => EnableCheck.IsChecked = EnableCheck.IsChecked != true));
         menu.Items.Add("停止当前执行", null, (_, _) => Dispatcher.Invoke(() => _player.Stop()));
         menu.Items.Add(new WinForms.ToolStripSeparator());

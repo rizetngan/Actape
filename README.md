@@ -16,7 +16,7 @@
 
 <p align="center">
 <img src="docs/windows-preview.png" width="94%" alt="Actape Windows 原生界面">
-<br><sub>Windows 原生界面 · 正式版 v1.0.0</sub>
+<br><sub>Windows 原生界面 · 正式版 v1.0.1</sub>
 </p>
 
 Actape 是一款面向 macOS 与 Windows 的原生宏工具。把重复的鼠标和键盘操作录下来，整理成可编辑步骤，再绑定到鼠标侧键随时执行。**一个轻量 App 完成录制、编辑、触发和回放，不需要额外安装鼠标映射软件。**
@@ -46,7 +46,7 @@ Actape 是一款面向 macOS 与 Windows 的原生宏工具。把重复的鼠标
 
 ## Windows
 
-**状态：** Windows 正式版 v1.0.0
+**状态：** Windows 正式版 v1.0.1
 
 原生 WPF 实现，使用 Win32 低级鼠标/键盘钩子与 `SendInput`，与 macOS 版本独立实现，不依赖额外驱动映射程序。
 
@@ -56,11 +56,11 @@ Actape 是一款面向 macOS 与 Windows 的原生宏工具。把重复的鼠标
 - 每个宏独立选择单击触发，或按住循环、松开停止。
 - 系统托盘常驻、自动保存、JSON 导入导出。
 
-Windows 版已完成本机编译、独立 EXE 启动、界面检查及用户实机测试，现作为 v1.0.0 正式发布。
+Windows 版已完成本机编译、独立 EXE 启动、界面检查及用户实机测试，现作为 v1.0.1 正式发布。
 
 ## 下载安装
 
-**Actape v1.0.0 已正式发布。** 下载安装包请前往 [GitHub Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.0)。
+**Actape v1.0.1 已正式发布。** 下载安装包请前往 [GitHub Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.1)。
 
 - [macOS 构建与发布记录](https://github.com/rizetngan/Actape/actions/workflows/build.yml)
 - [Windows 构建产物](https://github.com/rizetngan/Actape/actions/workflows/windows-build.yml)
@@ -72,7 +72,7 @@ Windows 版已完成本机编译、独立 EXE 启动、界面检查及用户实�
 
 ### macOS
 
-1. 从 [Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.0) 下载 macOS ZIP，解压后将 Actape.app 放入「应用程序」文件夹。
+1. 从 [Releases](https://github.com/rizetngan/Actape/releases/tag/v1.0.1) 下载 macOS ZIP，解压后将 Actape.app 放入「应用程序」文件夹。
 2. 首次启动后，在「系统设置 → 隐私与安全性」中为 Actape 授予「设备控制和数据访问」或旧版系统中的「辅助功能」权限。
 3. 点击录制，完成操作后停止录制；编辑步骤并测试执行。
 4. 在宏详情中绑定鼠标侧键，之后即可直接触发宏。
