@@ -250,7 +250,7 @@ final class MacroStore: ObservableObject {
         }
         guard AccessibilityHelper.isTrusted(prompt: false) else {
             _ = AccessibilityHelper.isTrusted(prompt: true)
-            statusMessage = "请先授权辅助功能，再重新绑定侧键。"
+            statusMessage = "请先授权设备控制和数据访问权限，再重新绑定侧键。"
             return
         }
         guard mouseButtons.start() else {

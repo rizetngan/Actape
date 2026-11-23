@@ -52,7 +52,7 @@ struct ActapeApp: App {
 
                 Divider()
 
-                Button("打开辅助功能设置…") {
+                Button("打开系统权限设置…") {
                     AccessibilityHelper.openSystemSettings()
                 }
             }
