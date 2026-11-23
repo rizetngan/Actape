@@ -29,7 +29,7 @@ if [[ ! "$expected" =~ ^[0-9a-fA-F]{64}$ ]]; then
   exit 1
 fi
 actual="$(shasum -a 256 "$tmp/$name" | awk '{print $1}')"
-if [[ "${actual,,}" != "${expected,,}" ]]; then
+if [[ "$(printf '%s' "$actual" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$expected" | tr '[:upper:]' '[:lower:]')" ]]; then
   echo "SHA-256 mismatch. Installation aborted." >&2
   exit 1
 fi
