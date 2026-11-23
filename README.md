@@ -68,6 +68,21 @@ Windows 版已完成编译、独立 EXE 启动、界面检查及用户实机验�
 
 正式版提供 macOS Universal 与 Windows x64 安装包。下载后可使用 Release 中的 `SHA256SUMS.txt` 校验文件完整性。
 
+## 使用 Agent 安装
+
+将以下整段指令复制给能够操作本机的 Agent（例如 ChatGPT Work、Codex 或 Claude Code），即可让其按当前系统完成安装：
+
+```text
+请帮我在这台电脑安装 Actape 最新稳定正式版：
+https://github.com/rizetngan/Actape
+
+1. 检查当前系统与 CPU 架构，仅从上述仓库的 GitHub Releases 获取最新稳定版；macOS 选择 universal ZIP，Windows x64 选择对应 ZIP。不要从第三方网站下载，也不要为安装正式版而编译源码或安装开发工具。
+2. 下载该版本的 SHA256SUMS.txt，核对安装包 SHA-256；不一致立即停止。
+3. 检查是否已安装 Actape。保留已有宏与配置，必要时备份旧程序。macOS 将解压后的 Actape.app 安装到“应用程序”（权限不足时可放到用户 Applications）；Windows 将 Actape.exe 及随附文件放入用户程序目录，并按需创建快捷方式。
+4. 安装完成后启动验证。macOS 如需“设备控制和数据访问”或“辅助功能”权限，请打开对应设置，由我自行授权；不要绕过系统安全校验。涉及覆盖旧程序或需要管理员授权时，先说明再由我确认。
+5. 告诉我安装版本、安装路径、SHA-256 校验结果、启动状态，以及需要我完成的权限步骤。不要删除我的宏数据或修改其他应用。
+```
+
 ## 使用方法
 
 ### macOS
