@@ -215,6 +215,9 @@ final class EventPlayer {
                 evt.post(tap: .cghidEventTap)
             }
 
+        case .wait:
+            break // Delay is already applied in the playback loop.
+
         case .typeText:
             let string = me.renderedText(iteration: iteration)
             for ch in string {

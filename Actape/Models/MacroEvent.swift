@@ -35,6 +35,7 @@ enum MacroEventKind: String, Codable, CaseIterable, Hashable {
     case flagsChanged
     case scroll
     case typeText
+    case wait
 
     var displayName: String {
         switch self {
@@ -49,6 +50,7 @@ enum MacroEventKind: String, Codable, CaseIterable, Hashable {
         case .flagsChanged: return "修饰键"
         case .scroll: return "滚动"
         case .typeText: return "输入文本"
+        case .wait: return "等待"
         }
     }
 
@@ -62,6 +64,7 @@ enum MacroEventKind: String, Codable, CaseIterable, Hashable {
         case .flagsChanged: return "command"
         case .scroll: return "arrow.up.and.down.circle"
         case .typeText: return "character.cursor.ibeam"
+        case .wait: return "clock"
         }
     }
 
@@ -263,6 +266,8 @@ struct MacroEvent: Identifiable, Codable, Hashable {
             return "按键：\(KeyCodeNames.label(for: keyCode, modifiers: modifierFlags)) · 原坐标 (\(Int(x)), \(Int(y)))"
         case .flagsChanged:
             return "修饰键：\(KeyCodeNames.modifierLabel(for: modifierFlags))"
+        case .wait:
+            return "等待 \(delayMs) ms"
         case .scroll:
             return "滚动 Δ(\(Int(scrollDeltaX)), \(Int(scrollDeltaY)))"
         case .typeText:
