@@ -29,6 +29,13 @@
 - 单步「录入操作」主要识别一次完整动作；连续双击和连续多次滚轮的自动合并尚需下一轮实机完善，可暂用完整录制流程。
 - macOS 目前为本机调试签名和 CI 构建验证；未做正式公证。
 
+## 测试版数据隔离
+
+- Windows 测试版使用 `%APPDATA%\Actape\Windows-Preview\macros.json`。
+- macOS 测试版使用 `~/Library/Application Support/Actape-UnifiedInput-Preview/macros.json`。
+- 首次启动会从正式版目录复制已有宏，后续独立保存，不会覆写正式版配置。
+- GitHub Actions 的功能分支构建也使用独立测试目录；主分支正式版本保持原路径。
+
 ## 本轮验收
 
 - Windows 本地 .NET 8 兼容构建、GitHub .NET 10 构建通过。

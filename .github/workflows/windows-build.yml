@@ -27,7 +27,11 @@ jobs:
       - name: Publish single-file Windows app
         shell: pwsh
         run: |
-          dotnet publish Windows/Actape.Windows/Actape.Windows.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o ./out/windows
+          $preview = @()
+          if ($env:GITHUB_REF -eq 'refs/heads/feature/preserve-coordinates-key-input') {
+            $preview = @('-p:DefineConstants=ACTAPE_PREVIEW')
+          }
+          dotnet publish Windows/Actape.Windows/Actape.Windows.csproj -c Release -r win-x64 --self-contained true @preview -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o ./out/windows
       - name: Package
         shell: pwsh
         run: |

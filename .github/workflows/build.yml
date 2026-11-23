@@ -45,6 +45,10 @@ jobs:
         id: package
         run: |
           APP="$RUNNER_TEMP/Actape.xcarchive/Products/Applications/Actape.app"
+          # Isolate the developer artifact from stable user's macro storage.
+          if [ "$GITHUB_REF" = "refs/heads/feature/preserve-coordinates-key-input" ]; then
+            /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.rizetngan.actape.unified-preview' "$APP/Contents/Info.plist"
+          fi
           codesign --force --deep --options runtime \
             --entitlements Actape.entitlements --sign - "$APP"
           codesign --verify --verbose=2 "$APP"

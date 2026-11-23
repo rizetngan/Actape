@@ -19,8 +19,14 @@ internal sealed class MacroRepository
     public MacroRepository()
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+#if ACTAPE_PREVIEW
+        // Preview builds must not overwrite the user's stable v1.0.1 macros.
+        var dir = Path.Combine(appData, "Actape", "Windows-Preview");
+        var legacyPath = Path.Combine(appData, "Actape", "Windows", "macros.json");
+#else
         var dir = Path.Combine(appData, "Actape", "Windows");
         var legacyPath = Path.Combine(appData, "Macrobot", "Windows", "macros.json");
+#endif
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "macros.json");
 

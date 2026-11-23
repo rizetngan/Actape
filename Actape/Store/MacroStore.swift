@@ -29,9 +29,11 @@ final class MacroStore: ObservableObject {
     init() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory,
                                                 in: .userDomainMask).first!
-        let dir = support.appendingPathComponent("Actape", isDirectory: true)
+        let isPreview = Bundle.main.bundleIdentifier == "com.rizetngan.actape.unified-preview"
+        let dir = support.appendingPathComponent(
+            isPreview ? "Actape-UnifiedInput-Preview" : "Actape", isDirectory: true)
         let legacyURL = support
-            .appendingPathComponent("Macrobot", isDirectory: true)
+            .appendingPathComponent(isPreview ? "Actape" : "Macrobot", isDirectory: true)
             .appendingPathComponent("macros.json")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         storageURL = dir.appendingPathComponent("macros.json")
